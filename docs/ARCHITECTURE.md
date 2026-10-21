@@ -2,7 +2,7 @@
 
 This document explains how the Usage Monitor plugin fits into DeepSeek Harness (DSH), which
 official Host services it uses, and how a dashboard number travels from a Session log to the
-browser. It is written against **DeepSeek Harness 0.2.1-rc.2** and **plugin 0.1.0**.
+browser. It is written against **DeepSeek Harness 0.2.1-rc.2** and **plugin 0.1.1**.
 
 For the exact metric sources and formulas see [`DATA-SOURCES.md`](DATA-SOURCES.md). For the
 Host ↔ Client JSON contract see [`API.md`](API.md).
@@ -133,6 +133,52 @@ settings changes, so five browser tabs polling at 5 s do not multiply the CPU co
 Nothing is written into the profile, the plugin package or the Session logs. Pruning runs every
 10 minutes against `retentionDays` (default 14).
 
+### 2.6 Anomaly assessment pipeline (v0.1.1)
+
+Snapshot construction is still one pure function (`buildSnapshot`), but the anomaly path was
+rewritten in v0.1.1 so a heavy workload is no longer automatically treated as abnormal:
+
+```text
+retained request rows
+        │
+        ▼
+UsageIndex  ── per-minute aggregates, per-model/session/preset/turn, cache counters
+        │
+        ▼
+activeBaselineStats ── 5-min buckets with requests ≥ minimumActiveRequests in [now−24h, now−1h]
+        │               median cost/hour + median requests/min + uncached/request + prompt size
+        │               status = ready | warming (6 buckets / 30 requests / 1 h coverage)
+        ▼
+buildSecondaryEvidence ── workload: request-rate, context-growth
+        │                  efficiency: cache-drop, uncached-burst, session-dominance (corroborating)
+        ▼
+burnSeverityOf ── activeRatio vs warning/criticalBurnRatio, gated by strong evidence and by
+        │         criticalRequiresSecondaryEvidence; warming → normal + baseline-warming
+        ▼
+conditions / assessment ── one combined burn-anomaly condition; cache-low, cost-spike,
+        │                    balance-low, recovered; workload-vs-efficiency explanation
+        ▼
+alerts (warning/critical only) + anomaly timeline (live conditions + evidence-backed history)
+```
+
+Key properties of the pipeline:
+
+- **The baseline never guesses.** While `activeBaseline.status === 'warming'`, burn severity is
+  forced to `normal` and no burn-rate alert can fire; the warning carries the bucket, request and
+  coverage counts, and confidence is exposed to the Client.
+- **Severity is evidence-gated.** High burn alone is a `notice`; `warning` and `critical` need at
+  least one strong efficiency signal, and `critical` additionally needs high burn (unless the user
+  disables `criticalRequiresSecondaryEvidence`). Session dominance is never a standalone signal.
+- **Workload and efficiency are separate.** The snapshot's `assessment` block exposes both lists
+  plus a `driver` (`workload` / `cache` / `uncached` / `mixed` / `none`) so the Client can explain
+  *why* rather than just reporting a ratio.
+- **History is evidence-only.** Per-bucket burn-rate reconstruction was removed as the main false
+  positive source; the timeline keeps evidence-backed cache drops and informational request spikes.
+- **Wire compatibility.** `schemaVersion` remains `1`; the v0.1.1 fields (`assessment`,
+  `burn.activeBaseline`, `burn.activeRatio`, `burn.overallRatio`, `burn.reason`,
+  `cache.deltaClass`, `cache.health`, `cache.deltaDeadband`, `cache.deltaNoticeThreshold`,
+  `cache.savings.kind`) are additive. An existing `state.json` / `settings.json` needs no migration.
+
 ## 3. Client half
 
 `client.js` is a single plain-JavaScript bundle. In DSH's module format it registers with the
@@ -167,8 +213,10 @@ lib/ingest.js  ── folds provider TokenUsage + cache signals ──►  in-me
         │  session/event (live incremental updates)                    │
         │                                                              ▼
 deepseekAccount.getBalance ───────────────────────────────►  lib/analytics.js
-        │  (wallet samples, ≤ every 45 s)                            │  snapshot
-        ▼                                                            ▼
+        │  (wallet samples, ≤ every 45 s)                            │
+        │                                    active baseline ─► evidence ─► severity
+        │                                                              │  + assessment
+        ▼                                                              ▼
 $DSH_HOME/usage-monitor/state.json                       authenticated JSON routes
                                                                      │
                                   browser: client.js polls every 5 s │
@@ -189,6 +237,7 @@ The plugin prefers an honest empty state over a fabricated one.
 | Platform balance request fails | `balance.state = "error"`, previous samples retained; no fake zero balance. |
 | Corrupt `state.json` | Renamed to `state.json.corrupt-<timestamp>`; the plugin starts from a clean state. |
 | Unknown model id | Tokens are counted; cost is `null` and a Diagnostics warning names the model. |
+| Active baseline still warming | `burn.activeBaseline.status = "warming"`, severity is forced to Normal, burn-rate alerts are suppressed, Diagnostics reports the bucket/request/coverage counts; the Client shows "Learning baseline". |
 | HTTP handler throws | Logged; `500` JSON error; the process is not affected. |
 
 ## 6. Harness architecture audit
@@ -217,6 +266,8 @@ migrations.
 
 - Built and tested against **DeepSeek Harness 0.2.1-rc.2**, desktop and web profiles.
 - Node.js **≥ 20** for the runtime (DSH bundles its own Node; this matters for development).
+- v0.1.1 keeps `schemaVersion: 1` and adds fields only; existing `settings.json` files load
+  unchanged (new anomaly-quality settings inherit defaults) and there is no data migration.
 - The plugin has **zero runtime dependencies**: only Node built-ins and the Host services above.
 - Session formats are owned by Harness; the plugin reads the current format through the
   official service and never parses the raw log files, so a Harness upgrade that ships a format
@@ -229,6 +280,10 @@ migrations.
 
 - **No per-page Host work.** The Client only renders; all scanning and aggregation happen once in
   the Host, so ten open tabs cost no extra scans.
+- **Fewer false positives by construction.** The primary burn comparison is against active
+  workloads (median of busy 5-minute buckets), the baseline refuses to judge while warming, and
+  aggressive severity is gated on corroborating efficiency evidence. A heavy task is labeled heavy,
+  not broken.
 - **No new network surface.** The only outbound request is the account balance read performed by
   Harness's own account service; the plugin registers no third-party endpoint and sends no
   telemetry.

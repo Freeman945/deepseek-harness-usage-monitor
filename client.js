@@ -91,8 +91,10 @@ window.__ModuleLoader__.load({
       'page.loading': 'Loading usage data\u2026',
 
       'status.normal': 'Normal',
-      'status.warning': 'High Usage',
+      'status.notice': 'Elevated',
+      'status.warning': 'Warning',
       'status.critical': 'Critical',
+      'status.noticeHint': 'Usage is high for your normal active workload, but there is no evidence of inefficiency.',
 
       'header.updated': 'Updated {time}',
       'header.never': 'Not loaded yet',
@@ -114,6 +116,12 @@ window.__ModuleLoader__.load({
       'alert.uncached.detail': '{tokens} uncached input tokens in 30 minutes vs {baseline} typical.',
       'alert.balance.title': 'Balance below {threshold}',
       'alert.balance.detail': 'Current balance is {balance}.',
+      'alert.burn.titleActive': 'Burn rate is {ratio}\u00d7 the active baseline',
+      'alert.burn.detailActive': 'Now {current}; {activeRatio}\u00d7 active baseline, {overallRatio}\u00d7 the 24h average; cache hit rate {cacheHitRate}.',
+      'alert.cacheHit.title': 'Cache hit rate dropped to {rate}',
+      'alert.cacheHit.detail': 'Baseline {baseline}; down {delta}. Burn is {activeRatio}\u00d7 the active baseline.',
+      'alert.cacheHit.detailShort': 'Baseline {baseline}; down {delta}.',
+      'alert.uncached.detailActive': 'Uncached input {tokens} in 30 minutes vs an active baseline of {baseline} ({multiplier}\u00d7); cache hit rate {cacheHitRate}.',
 
       'anomaly.burn.title': 'Burn rate reached {ratio}\u00d7 the 24h average',
       'anomaly.burn.detail': 'Now {current} vs {baseline} over the previous 24h.',
@@ -123,6 +131,7 @@ window.__ModuleLoader__.load({
       'anomaly.cache.detailNoBaseline': 'Cache hit rate in this bucket was {rate}.',
       'anomaly.cacheProblem.title': 'Possible cache problem detected',
       'anomaly.cacheProblem.detail': 'Cache hit rate fell {delta} while burn rate is {ratio}\u00d7 normal.',
+      'anomaly.cacheProblem.detailRates': 'Cache hit rate {hitRate} vs baseline {baseline}; burn is {ratio}\u00d7 the active baseline.',
       'anomaly.cacheLow.title': 'Cache hit rate is low',
       'anomaly.cacheLow.detail': '{rate} over the last hour (baseline {baseline}), below the {threshold} warning threshold for {minutes} min.',
       'anomaly.uncached.title': 'Uncached input tokens surged',
@@ -142,6 +151,10 @@ window.__ModuleLoader__.load({
       'anomaly.recovered.title': 'Usage returned to normal',
       'anomaly.recovered.detail': 'The previous condition is no longer active.',
       'anomaly.recovered.detailWith': 'The previous condition is no longer active: {condition}.',
+      'anomaly.burn.titleActive': 'Burn rate is {ratio}\u00d7 the active baseline',
+      'anomaly.burn.detailActive': 'Now {current}; {activeRatio}\u00d7 active baseline, {overallRatio}\u00d7 the 24h average; cache hit rate {cacheHitRate}.',
+      'anomaly.cache.detailDelta': 'The 24h baseline is {baseline}; down {delta}.',
+      'anomaly.uncached.detailActive': 'Uncached input {tokens} in 30 minutes vs an active baseline of {baseline} ({multiplier}\u00d7); cache hit rate {cacheHitRate}.',
 
       'condition.burn-rate': 'burn rate',
       'condition.cache-low': 'low cache hit rate',
@@ -195,6 +208,13 @@ window.__ModuleLoader__.load({
       'kpi.usageMeta': '{requests} requests \u00b7 {tokens} tokens',
       'kpi.rateMeta': '{requests} req/min \u00b7 {tokens} tok/min',
       'kpi.burnBaseline': '24h average {amount}/h',
+      'kpi.activeBaselineHigher': '{ratio}\u00d7 active baseline',
+      'kpi.activeBaselineLower': '{ratio}\u00d7 active baseline (below normal)',
+      'kpi.overallBaseline': '{ratio}\u00d7 the 24h average',
+      'kpi.noticeWording': 'High usage, no efficiency anomaly evidence',
+      'kpi.learningBaseline': 'Learning baseline',
+      'kpi.learningBaselineHint': 'Still collecting normal active windows: {buckets}/{minBuckets} active buckets, {hours}h coverage, {requests} requests. Burn ratios are not judged until the baseline is ready.',
+      'kpi.learningBaselineMeta': 'Ratios are not shown until the baseline is ready',
 
       'balance.signedOut': 'Not signed in',
       'balance.signedOutHint': 'Sign in to the DeepSeek account platform to see the balance. Usage estimates still work.',
@@ -224,14 +244,20 @@ window.__ModuleLoader__.load({
       'cache.title': 'Cache hit rate',
       'cache.window': 'Last hour',
       'cache.baseline': '24h baseline {rate}',
+      'cache.health.healthy': 'Healthy',
+      'cache.health.notice': 'Slight change',
+      'cache.health.warning': 'Efficiency drop',
+      'cache.health.critical': 'Low hit rate',
+      'cache.health.unknown': 'No baseline',
+      'cache.deltaNeutral': 'steady (\u00b1{delta})',
+      'cache.deltaUnknown': 'No baseline to compare',
       'cache.deltaUp': 'up {delta} vs the 24h baseline',
       'cache.deltaDown': 'down {delta} vs the 24h baseline',
-      'cache.deltaFlat': 'in line with the 24h baseline',
       'cache.hits': 'Cache hits',
       'cache.misses': 'Cache misses',
       'cache.writes': 'Cache writes',
-      'cache.savings': 'Estimated savings {amount} (24h)',
-      'cache.savingsHint': 'Estimated difference compared with billing every input token at the cache-miss price over the last 24 hours.',
+      'cache.savings': 'Estimated avoided input cost {amount} (24h)',
+      'cache.savingsHint': 'Estimate: cached input priced at the cache-hit rate instead of the cache-miss rate over the last 24h. This is not a refund or a platform credit.',
       'cache.trendAria': 'Cache hit rate trend over the last hour, with the 24h baseline band.',
       'cache.empty': 'No cache data in this window.',
 
@@ -239,6 +265,8 @@ window.__ModuleLoader__.load({
       'rate.now': '{value} req/min',
       'rate.baseline': '24h average {value} req/min',
       'rate.multiplier': '{ratio}\u00d7 the 24h average',
+      'rate.multiplierActive': '{ratio}\u00d7 the active baseline',
+      'rate.metaActive': '{overall}\u00d7 the 24h average \u00b7 baseline {baseline} req/min',
       'rate.noBaseline': 'No 24h average yet',
       'rate.avgInput': 'Avg input / request',
       'rate.uncachedPerMin': 'Uncached input / min',
@@ -276,7 +304,34 @@ window.__ModuleLoader__.load({
       'why.model.title': 'One model dominates estimated cost',
       'why.model.detail': '{model} accounts for {rate} of estimated cost.',
 
+      'why.driverLabel': 'Main driver',
+      'why.driver.workload': 'Heavy workload',
+      'why.driver.cache': 'Cache efficiency',
+      'why.driver.uncached': 'Uncached input',
+      'why.driver.mixed': 'Mixed',
+      'why.driver.none': 'No abnormal usage',
+      'why.driver.normalWorkload': 'Normal workload',
+      'why.workloadGroup': 'Workload evidence',
+      'why.efficiencyGroup': 'Efficiency evidence',
+      'why.workload.requestRate': 'Request rate {recent} req/min, active baseline {baseline} req/min ({multiplier}\u00d7)',
+      'why.workload.contextGrowth': 'Average context {recent} tokens, active baseline {baseline} tokens ({multiplier}\u00d7)',
+      'why.efficiency.cacheDrop': 'Cache hit rate {hitRate} (baseline {baseline}), down {delta}',
+      'why.efficiency.uncachedBurst': 'Uncached input {tokens}, about {multiplier}\u00d7 the active baseline {baseline} (per request {perRequest} vs {baselinePerRequest})',
+      'why.efficiency.sessionDominance': 'One session accounts for {share} of recent uncached input',
+      'why.sessionChip': 'session',
+      'why.assessment.normal': 'Usage is normal; no efficiency problem detected.',
+      'why.assessment.heavyWorkload': 'Usage is high, but this looks like a heavy normal task: cache hit rate {hitRate}, uncached input is normal.',
+      'why.assessment.cacheProblem': 'Usage is high and the cache hit rate fell from {baseline} to {hitRate}; cache misses are the likely main driver.',
+      'why.assessment.uncachedBurst': 'Uncached input is well above the active baseline ({multiplier}\u00d7); cache efficiency is the likely main driver.',
+      'why.assessment.mixed': 'Usage is elevated with both workload and efficiency signals; check the efficiency evidence first.',
+      'why.assessment.elevated': 'Usage is elevated, but the evidence is not strong enough to call an efficiency problem.',
+      'why.warmingTitle': 'Learning the active baseline',
+      'why.warmingDetail': 'Recorded {buckets}/{minBuckets} active buckets, {hours}h coverage, {requests} requests. Burn ratios are only judged once the baseline is ready.',
+      'why.diagnosticsTitle': 'Cache diagnostics',
+      'why.diagnosticsEmpty': 'No specific cache cause found.',
+
       'severity.info': 'Info',
+      'severity.notice': 'Notice',
       'severity.warning': 'Warning',
       'severity.critical': 'Critical',
 
@@ -407,8 +462,10 @@ window.__ModuleLoader__.load({
       'page.loading': '正在加载用量数据\u2026',
 
       'status.normal': '正常',
-      'status.warning': '用量偏高',
+      'status.notice': '消耗较高',
+      'status.warning': '警告',
       'status.critical': '严重',
+      'status.noticeHint': '当前用量相对你的正常活跃工作量偏高，但没有证据表明存在效率问题。',
 
       'header.updated': '更新于 {time}',
       'header.never': '尚未加载',
@@ -430,6 +487,12 @@ window.__ModuleLoader__.load({
       'alert.uncached.detail': '最近 30 分钟未命中输入 {tokens} Token，通常约为 {baseline}。',
       'alert.balance.title': '余额低于 {threshold}',
       'alert.balance.detail': '当前余额为 {balance}。',
+      'alert.burn.titleActive': '消耗速率是活跃基线的 {ratio}\u00d7',
+      'alert.burn.detailActive': '当前 {current}；活跃基线 {activeRatio}\u00d7，24 小时均值 {overallRatio}\u00d7；缓存命中率 {cacheHitRate}。',
+      'alert.cacheHit.title': '缓存命中率降至 {rate}',
+      'alert.cacheHit.detail': '基线 {baseline}，下降 {delta}；消耗速率为活跃基线的 {activeRatio}\u00d7。',
+      'alert.cacheHit.detailShort': '基线 {baseline}，下降 {delta}。',
+      'alert.uncached.detailActive': '最近 30 分钟未命中输入 {tokens}，活跃基线 {baseline}（{multiplier}\u00d7）；缓存命中率 {cacheHitRate}。',
 
       'anomaly.burn.title': '消耗速率达到 24 小时均值的 {ratio}\u00d7',
       'anomaly.burn.detail': '当前 {current}，此前 24 小时均值为 {baseline}。',
@@ -439,6 +502,7 @@ window.__ModuleLoader__.load({
       'anomaly.cache.detailNoBaseline': '该分桶的缓存命中率为 {rate}。',
       'anomaly.cacheProblem.title': '检测到可能的缓存问题',
       'anomaly.cacheProblem.detail': '缓存命中率下降 {delta}，同时消耗速率为正常水平的 {ratio}\u00d7。',
+      'anomaly.cacheProblem.detailRates': '缓存命中率 {hitRate}（基线 {baseline}），消耗速率为活跃基线的 {ratio}\u00d7。',
       'anomaly.cacheLow.title': '缓存命中率偏低',
       'anomaly.cacheLow.detail': '{rate}（最近一小时，基线 {baseline}），已持续 {minutes} 分钟低于 {threshold} 的警告阈值。',
       'anomaly.uncached.title': '未命中缓存的输入 Token 激增',
@@ -458,6 +522,10 @@ window.__ModuleLoader__.load({
       'anomaly.recovered.title': '用量已恢复正常',
       'anomaly.recovered.detail': '此前的异常条件已不再触发。',
       'anomaly.recovered.detailWith': '此前的异常条件已不再触发：{condition}。',
+      'anomaly.burn.titleActive': '消耗速率是活跃基线的 {ratio}\u00d7',
+      'anomaly.burn.detailActive': '当前 {current}；活跃基线 {activeRatio}\u00d7，24 小时均值 {overallRatio}\u00d7；缓存命中率 {cacheHitRate}。',
+      'anomaly.cache.detailDelta': '24 小时基线为 {baseline}，下降 {delta}。',
+      'anomaly.uncached.detailActive': '最近 30 分钟未命中输入 {tokens}，活跃基线 {baseline}（{multiplier}\u00d7）；缓存命中率 {cacheHitRate}。',
 
       'condition.burn-rate': '消耗速率',
       'condition.cache-low': '缓存命中率过低',
@@ -511,6 +579,13 @@ window.__ModuleLoader__.load({
       'kpi.usageMeta': '{requests} 次请求 \u00b7 {tokens} Token',
       'kpi.rateMeta': '{requests} 次/分钟 \u00b7 {tokens} Token/分钟',
       'kpi.burnBaseline': '24 小时平均 {amount}/小时',
+      'kpi.activeBaselineHigher': '活跃基线的 {ratio}\u00d7',
+      'kpi.activeBaselineLower': '活跃基线的 {ratio}\u00d7（低于基线）',
+      'kpi.overallBaseline': '24 小时均值 {ratio}\u00d7',
+      'kpi.noticeWording': '消耗较高，暂无效率异常证据',
+      'kpi.learningBaseline': '正在建立基线',
+      'kpi.learningBaselineHint': '仍在收集正常活跃时段：已记录 {buckets}/{minBuckets} 个活跃分桶、{hours} 小时覆盖、{requests} 次请求。基线就绪前不判断消耗倍数。',
+      'kpi.learningBaselineMeta': '基线就绪前不显示倍数',
 
       'balance.signedOut': '未登录',
       'balance.signedOutHint': '登录 DeepSeek 开放平台账号后才能读取余额；用量估算仍然可用。',
@@ -540,14 +615,20 @@ window.__ModuleLoader__.load({
       'cache.title': '缓存命中率',
       'cache.window': '最近一小时',
       'cache.baseline': '24 小时基线 {rate}',
+      'cache.health.healthy': '健康',
+      'cache.health.notice': '轻微波动',
+      'cache.health.warning': '效率下降',
+      'cache.health.critical': '命中率过低',
+      'cache.health.unknown': '无基线',
+      'cache.deltaNeutral': '基本持平（\u00b1{delta}）',
+      'cache.deltaUnknown': '基线不足，无法比较',
       'cache.deltaUp': '比 24 小时基线高 {delta}',
       'cache.deltaDown': '比 24 小时基线低 {delta}',
-      'cache.deltaFlat': '与 24 小时基线持平',
       'cache.hits': '缓存命中',
       'cache.misses': '缓存未命中',
       'cache.writes': '缓存写入',
-      'cache.savings': '预计节省 {amount}（24h）',
-      'cache.savingsHint': '相对全部输入按未命中缓存价格计费的估算差额（最近 24 小时）。',
+      'cache.savings': '缓存避免的理论额外费用 {amount}（24h）',
+      'cache.savingsHint': '估算方式：将当前 cached input 假设为全部按 cache-miss 输入价格计费，与实际计费的差额。这不是退款，也不是平台实际返还金额。',
       'cache.trendAria': '最近一小时的缓存命中率走势，并标出 24 小时基线区间。',
       'cache.empty': '该时间范围内没有缓存数据。',
 
@@ -555,6 +636,8 @@ window.__ModuleLoader__.load({
       'rate.now': '{value} 次/分钟',
       'rate.baseline': '24 小时平均 {value} 次/分钟',
       'rate.multiplier': '是 24 小时均值的 {ratio}\u00d7',
+      'rate.multiplierActive': '是活跃基线的 {ratio}\u00d7',
+      'rate.metaActive': '24 小时均值 {overall}\u00d7 \u00b7 基线 {baseline} 次/分钟',
       'rate.noBaseline': '尚无 24 小时均值',
       'rate.avgInput': '每次请求平均输入',
       'rate.uncachedPerMin': '未命中缓存输入/分钟',
@@ -592,7 +675,34 @@ window.__ModuleLoader__.load({
       'why.model.title': '单个模型贡献了大部分估算费用',
       'why.model.detail': '{model} 占估算费用的 {rate}。',
 
+      'why.driverLabel': '主要驱动',
+      'why.driver.workload': '正常高负载',
+      'why.driver.cache': '缓存效率',
+      'why.driver.uncached': '未命中输入',
+      'why.driver.mixed': '混合',
+      'why.driver.none': '无异常',
+      'why.driver.normalWorkload': '正常高负载',
+      'why.workloadGroup': '工作负载证据',
+      'why.efficiencyGroup': '效率证据',
+      'why.workload.requestRate': '请求速率 {recent} 次/分钟，活跃基线 {baseline} 次/分钟（{multiplier}\u00d7）',
+      'why.workload.contextGrowth': '平均上下文 {recent} tokens，活跃基线 {baseline} tokens（{multiplier}\u00d7）',
+      'why.efficiency.cacheDrop': '缓存命中率 {hitRate}（基线 {baseline}），下降 {delta}',
+      'why.efficiency.uncachedBurst': '未命中输入 {tokens}，约为活跃基线 {baseline} 的 {multiplier}\u00d7（每请求 {perRequest} vs {baselinePerRequest}）',
+      'why.efficiency.sessionDominance': '单个会话占近期未命中输入的 {share}',
+      'why.sessionChip': '会话',
+      'why.assessment.normal': '当前消耗正常，未发现效率异常。',
+      'why.assessment.heavyWorkload': '当前消耗较高，但这更像正常的大型任务：缓存命中率 {hitRate}，未命中输入保持正常。',
+      'why.assessment.cacheProblem': '消耗高且缓存命中率从 {baseline} 降到 {hitRate}，缓存未命中可能是主要原因。',
+      'why.assessment.uncachedBurst': '未命中输入明显高于活跃基线（{multiplier}\u00d7），缓存效率可能是主要原因。',
+      'why.assessment.mixed': '消耗较高，同时出现工作负载和效率两类信号，建议先看效率证据。',
+      'why.assessment.elevated': '消耗较高，但现有证据不足以判断效率异常。',
+      'why.warmingTitle': '正在建立活跃基线',
+      'why.warmingDetail': '已记录 {buckets}/{minBuckets} 个活跃分桶、{hours} 小时覆盖、{requests} 次请求。基线就绪后才会判断消耗倍数是否异常。',
+      'why.diagnosticsTitle': '缓存诊断',
+      'why.diagnosticsEmpty': '未发现具体的缓存原因。',
+
       'severity.info': '提示',
+      'severity.notice': '提示',
       'severity.warning': '警告',
       'severity.critical': '严重',
 
@@ -751,6 +861,14 @@ window.__ModuleLoader__.load({
     /** `n` is a finite number, otherwise null — keeps chart and formatter guards terse. */
     function num(value) {
       return typeof value === 'number' && isFinite(value) ? value : null;
+    }
+
+    /** First finite number among the arguments (Host evidence keys changed across versions). */
+    function firstNum() {
+      for (let i = 0; i < arguments.length; i += 1) {
+        if (num(arguments[i]) != null) return arguments[i];
+      }
+      return null;
     }
 
     /**
@@ -918,7 +1036,79 @@ window.__ModuleLoader__.load({
 
     /** Normalize a server severity; unknown values degrade to `info`. */
     function levelOf(value) {
-      return value === 'critical' || value === 'warning' ? value : 'info';
+      return value === 'critical' || value === 'warning' || value === 'notice' ? value : 'info';
+    }
+
+    /** Severity from a v0.1.1 status/assessment level (normal|notice|warning|critical). */
+    function statusLevelOf(value) {
+      if (value === 'critical' || value === 'warning' || value === 'notice') return value;
+      return 'normal';
+    }
+
+    /** Map a cache-health state to the shared `data-level` palette. */
+    function healthLevelOf(state) {
+      if (state === 'critical') return 'critical';
+      if (state === 'warning') return 'warning';
+      if (state === 'notice') return 'notice';
+      if (state === 'healthy') return 'normal';
+      return 'info';
+    }
+
+    /** v0.1.1 assessment block (`undefined` on older Hosts). */
+    function assessmentOf(data) {
+      const assessment = data && data.assessment;
+      return assessment && typeof assessment === 'object' ? assessment : null;
+    }
+
+    /** True while the Host is still collecting the active-workload baseline. */
+    function baselineWarmingOf(data) {
+      const burn = (data && data.burn) || {};
+      const active = burn.activeBaseline;
+      if (active && (active.status === 'ready' || active.status === 'warming')) return active.status === 'warming';
+      if (burn.baselineStatus === 'ready' || burn.baselineStatus === 'warming') return burn.baselineStatus === 'warming';
+      const assessment = assessmentOf(data);
+      if (assessment && typeof assessment.baselineWarming === 'boolean') return assessment.baselineWarming;
+      return false;
+    }
+
+    /**
+     * Cache health for v0.1.1 snapshots, or a conservative derivation from the older
+     * delta/hit-rate fields so the card keeps working on Hosts without `cache.health`.
+     */
+    function cacheHealthOf(cache) {
+      if (cache && cache.health && typeof cache.health === 'object' && typeof cache.health.state === 'string') {
+        return cache.health;
+      }
+      const hitRate = num(cache && cache.hitRate);
+      const delta = num(cache && cache.deltaVsBaseline);
+      let deltaClass = 'unknown';
+      if (delta != null) {
+        const magnitude = Math.abs(delta);
+        deltaClass = magnitude < 0.05 ? 'neutral' : magnitude < 0.15 ? 'notice' : 'warning';
+      }
+      let state = 'unknown';
+      if (hitRate != null) {
+        if (hitRate < 0.3) state = 'critical';
+        else if (hitRate < 0.5) state = 'warning';
+        else if (delta != null && delta <= -0.05) state = 'notice';
+        else state = 'healthy';
+      }
+      return {
+        state,
+        absoluteHitRate: hitRate,
+        healthyRate: 0.9,
+        deadband: 0.05,
+        deltaClass,
+        reasonCode: state === 'healthy' ? 'high-absolute-hit-rate' : 'low-absolute-hit-rate',
+        legacy: true,
+      };
+    }
+
+    /** Unsigned percentage-point delta using the current display formatters ("2.1 pp"). */
+    function ppText(t, fmt, value) {
+      const amount = num(value);
+      if (amount == null) return EM_DASH;
+      return fmt.decimal(Math.abs(amount) * 100) + ' ' + t('unit.pp');
     }
 
     /** String warnings carried by a snapshot's diagnostics block. */
@@ -1131,6 +1321,93 @@ window.__ModuleLoader__.load({
       return fmt.percent(rate != null ? rate : SETTINGS_FALLBACK.cacheWarningRate);
     }
 
+    /* ---------------------------------------------------------------------------------------- *
+     * v0.1.1 assessment helpers.
+     *
+     * The Host now separates "heavy but efficient work" (workload evidence) from real cache
+     * efficiency problems. These helpers render that structured explanation and keep every
+     * older field path working when `assessment` / `burn.activeBaseline` / `cache.health` are
+     * missing from a snapshot produced by an older Host.
+     * ---------------------------------------------------------------------------------------- */
+
+    /** Active-baseline ratio text for the burn KPI. */
+    function burnRatioText(t, fmt, ratio) {
+      const value = num(ratio);
+      if (value == null) return null;
+      if (value >= 1) return t('kpi.activeBaselineHigher', { ratio: fmt.ratio(value) });
+      return t('kpi.activeBaselineLower', { ratio: fmt.ratio(value) });
+    }
+
+    /** Localized display text for one assessment evidence entry. */
+    function formatAssessmentEntry(t, fmt, entry) {
+      if (!entry || typeof entry !== 'object') return null;
+      const values = entry.values && typeof entry.values === 'object' ? entry.values : {};
+      if (entry.code === 'request-rate') {
+        return t('why.workload.requestRate', {
+          recent: fmt.decimal(values.recent),
+          baseline: fmt.decimal(values.baseline),
+          multiplier: fmt.ratio(values.multiplier),
+        });
+      }
+      if (entry.code === 'context-growth') {
+        return t('why.workload.contextGrowth', {
+          recent: fmt.compact(values.recent),
+          baseline: fmt.compact(values.baseline),
+          multiplier: fmt.ratio(values.multiplier),
+        });
+      }
+      if (entry.code === 'cache-drop') {
+        return t('why.efficiency.cacheDrop', {
+          hitRate: fmt.percent(values.hitRate),
+          baseline: fmt.percent(values.baselineHitRate),
+          delta: ppText(t, fmt, values.delta),
+        });
+      }
+      if (entry.code === 'uncached-burst') {
+        return t('why.efficiency.uncachedBurst', {
+          tokens: fmt.compact(values.tokens),
+          baseline: fmt.compact(values.baselineTokens),
+          multiplier: fmt.ratio(values.multiplier),
+          perRequest: fmt.compact(values.perRequest),
+          baselinePerRequest: fmt.compact(values.baselinePerRequest),
+        });
+      }
+      if (entry.code === 'session-dominance') {
+        return t('why.efficiency.sessionDominance', { share: fmt.percent(clamp01(values.share)) });
+      }
+      return null;
+    }
+
+    /** `why.assessment.*` dictionary key for an assessment summary key. */
+    function assessmentSentenceKey(summaryKey) {
+      if (summaryKey === 'heavy-workload') return 'why.assessment.heavyWorkload';
+      if (summaryKey === 'cache-problem') return 'why.assessment.cacheProblem';
+      if (summaryKey === 'uncached-burst') return 'why.assessment.uncachedBurst';
+      if (summaryKey === 'mixed') return 'why.assessment.mixed';
+      if (summaryKey === 'elevated') return 'why.assessment.elevated';
+      return 'why.assessment.normal';
+    }
+
+    /** Placeholder values for the assessment sentence, tolerant of partial metrics. */
+    function assessmentSentenceParams(t, fmt, assessment) {
+      const metrics = (assessment && assessment.metrics) || {};
+      const efficiency = assessment && Array.isArray(assessment.efficiency) ? assessment.efficiency : [];
+      const uncached = efficiency.filter((entry) => entry && entry.code === 'uncached-burst')[0] || null;
+      return {
+        hitRate: fmt.percent(metrics.cacheHitRate),
+        baseline: fmt.percent(metrics.baselineCacheHitRate),
+        multiplier: fmt.ratio(uncached && uncached.values ? uncached.values.multiplier : null),
+      };
+    }
+
+    /** Chip level for an assessment main driver. */
+    function driverLevelOf(driver) {
+      if (driver === 'cache' || driver === 'uncached' || driver === 'mixed') return 'warning';
+      if (driver === 'workload') return 'notice';
+      if (driver === 'normalWorkload') return 'info';
+      return 'info';
+    }
+
     /** Localize one `cache.diagnosis` entry by `code` + `evidence`. */
     function localizeDiagnosis(t, fmt, item, settings) {
       const code = item && item.code;
@@ -1271,14 +1548,29 @@ window.__ModuleLoader__.load({
       if (!alert) return { title: '', detail: '' };
       const type = alert.type;
       const evidence = alert.evidence && typeof alert.evidence === 'object' ? alert.evidence : {};
-      if (type === 'burn-rate' && num(evidence.ratio) != null && num(evidence.burnPerHour) != null) {
-        return {
-          title: t('alert.burn.title', { ratio: fmt.ratio(evidence.ratio) }),
-          detail: t('alert.burn.detail', {
-            current: hourly(t, fmt, evidence.burnPerHour),
-            baseline: hourly(t, fmt, evidence.baselinePerHour),
-          }),
-        };
+      if (type === 'burn-rate') {
+        // v0.1.1 evidence carries the active-baseline ratio; fall back to the older ratio pair.
+        const activeRatio = firstNum(evidence.activeRatio);
+        if (activeRatio != null) {
+          return {
+            title: t('alert.burn.titleActive', { ratio: fmt.ratio(activeRatio) }),
+            detail: t('alert.burn.detailActive', {
+              current: hourly(t, fmt, evidence.burnPerHour),
+              activeRatio: fmt.ratio(activeRatio),
+              overallRatio: fmt.ratio(evidence.overallRatio),
+              cacheHitRate: fmt.percent(evidence.cacheHitRate),
+            }),
+          };
+        }
+        if (num(evidence.ratio) != null && num(evidence.burnPerHour) != null) {
+          return {
+            title: t('alert.burn.title', { ratio: fmt.ratio(evidence.ratio) }),
+            detail: t('alert.burn.detail', {
+              current: hourly(t, fmt, evidence.burnPerHour),
+              baseline: hourly(t, fmt, evidence.baselinePerHour),
+            }),
+          };
+        }
       }
       if (type === 'cache-low' && num(evidence.hitRate) != null) {
         const rate = fmt.percent(evidence.hitRate);
@@ -1291,6 +1583,20 @@ window.__ModuleLoader__.load({
         }
         return { title: t('alert.cache.title'), detail: t('alert.cache.detailNoBaseline', { rate, threshold, minutes }) };
       }
+      if (type === 'cache-hit-drop') {
+        const rate = firstNum(evidence.cacheHitRate, evidence.hitRate);
+        if (rate != null) {
+          const baseline = fmt.percent(firstNum(evidence.baselineCacheHitRate, evidence.baseline));
+          const delta = ppText(t, fmt, firstNum(evidence.cacheDelta, evidence.hitRateDelta));
+          const activeRatio = firstNum(evidence.activeRatio, evidence.burnRatio);
+          return {
+            title: t('alert.cacheHit.title', { rate: fmt.percent(rate) }),
+            detail: activeRatio != null
+              ? t('alert.cacheHit.detail', { baseline, delta, activeRatio: fmt.ratio(activeRatio) })
+              : t('alert.cacheHit.detailShort', { baseline, delta }),
+          };
+        }
+      }
       if (type === 'cost-spike' && num(evidence.last10mCost) != null) {
         return {
           title: t('alert.cost.title', { amount: fmt.money(evidence.last10mCost) }),
@@ -1298,12 +1604,23 @@ window.__ModuleLoader__.load({
         };
       }
       if (type === 'uncached-burst' && num(evidence.uncachedTokens) != null) {
+        const tokens = fmt.compact(evidence.uncachedTokens);
+        const baseline = fmt.compact(firstNum(evidence.uncachedBaselineTokens, evidence.baselineTokens, evidence.baseline));
+        const multiplier = firstNum(evidence.uncachedMultiplier, evidence.multiplier);
+        if (num(evidence.cacheHitRate) != null) {
+          return {
+            title: t('alert.uncached.title'),
+            detail: t('alert.uncached.detailActive', {
+              tokens,
+              baseline,
+              multiplier: fmt.ratio(multiplier),
+              cacheHitRate: fmt.percent(evidence.cacheHitRate),
+            }),
+          };
+        }
         return {
           title: t('alert.uncached.title'),
-          detail: t('alert.uncached.detail', {
-            tokens: fmt.compact(evidence.uncachedTokens),
-            baseline: fmt.compact(evidence.baseline),
-          }),
+          detail: t('alert.uncached.detail', { tokens, baseline }),
         };
       }
       if (type === 'balance-low' && num(evidence.threshold) != null) {
@@ -1329,38 +1646,64 @@ window.__ModuleLoader__.load({
       if (!item) return { title: '', detail: '' };
       const type = item.type;
       const evidence = item.evidence && typeof item.evidence === 'object' ? item.evidence : {};
-      if (type === 'burn-rate' && num(evidence.ratio) != null) {
-        const title = t('anomaly.burn.title', { ratio: fmt.ratio(evidence.ratio) });
-        if (num(evidence.burnPerHour) != null && num(evidence.baselinePerHour) != null) {
+      if (type === 'burn-rate') {
+        const activeRatio = firstNum(evidence.activeRatio);
+        if (activeRatio != null && num(evidence.burnPerHour) != null) {
           return {
-            title,
-            detail: t('anomaly.burn.detail', {
+            title: t('anomaly.burn.titleActive', { ratio: fmt.ratio(activeRatio) }),
+            detail: t('anomaly.burn.detailActive', {
               current: hourly(t, fmt, evidence.burnPerHour),
-              baseline: hourly(t, fmt, evidence.baselinePerHour),
+              activeRatio: fmt.ratio(activeRatio),
+              overallRatio: fmt.ratio(evidence.overallRatio),
+              cacheHitRate: fmt.percent(evidence.cacheHitRate),
             }),
           };
         }
-        return { title, detail: t('anomaly.burn.detailBucket', { ratio: fmt.ratio(evidence.ratio) }) };
+        if (num(evidence.ratio) != null) {
+          const title = t('anomaly.burn.title', { ratio: fmt.ratio(evidence.ratio) });
+          if (num(evidence.burnPerHour) != null && num(evidence.baselinePerHour) != null) {
+            return {
+              title,
+              detail: t('anomaly.burn.detail', {
+                current: hourly(t, fmt, evidence.burnPerHour),
+                baseline: hourly(t, fmt, evidence.baselinePerHour),
+              }),
+            };
+          }
+          return { title, detail: t('anomaly.burn.detailBucket', { ratio: fmt.ratio(evidence.ratio) }) };
+        }
       }
       if (type === 'cache-hit-drop') {
-        if (num(evidence.hitRateDelta) != null && num(evidence.burnRatio) != null) {
+        // v0.1.1 keys: cacheHitRate / baselineCacheHitRate / cacheDelta (+ activeRatio).
+        // Older snapshots and the historical ledger use hitRate/recent + baseline + delta.
+        const currentRate = firstNum(evidence.cacheHitRate, evidence.hitRate, evidence.recent);
+        const baselineRate = firstNum(evidence.baselineCacheHitRate, evidence.baselineHitRate, evidence.baseline);
+        const delta = firstNum(evidence.cacheDelta, evidence.hitRateDelta);
+        const ratio = firstNum(evidence.activeRatio, evidence.burnRatio);
+        if (currentRate == null && delta != null && ratio != null) {
           return {
             title: t('anomaly.cacheProblem.title'),
-            detail: t('anomaly.cacheProblem.detail', {
-              delta: fmt.percentAbs(evidence.hitRateDelta),
-              ratio: fmt.ratio(evidence.burnRatio),
-            }),
+            detail: t('anomaly.cacheProblem.detail', { delta: ppText(t, fmt, delta), ratio: fmt.ratio(ratio) }),
           };
         }
-        // The Host uses `recent` for the current hit rate in the historical ledger and
-        // `hitRate` in live conditions; accept both.
-        const currentRate = num(evidence.hitRate) != null ? evidence.hitRate : evidence.recent;
-        if (num(currentRate) != null) {
+        if (currentRate != null) {
           const rate = fmt.percent(currentRate);
+          if (ratio != null) {
+            return {
+              title: t('anomaly.cacheProblem.title'),
+              detail: t('anomaly.cacheProblem.detailRates', {
+                hitRate: rate,
+                baseline: fmt.percent(baselineRate),
+                ratio: fmt.ratio(ratio),
+              }),
+            };
+          }
           return {
             title: t('anomaly.cache.title', { rate }),
-            detail: num(evidence.baseline) != null
-              ? t('anomaly.cache.detail', { baseline: fmt.percent(evidence.baseline) })
+            detail: baselineRate != null
+              ? (delta != null
+                ? t('anomaly.cache.detailDelta', { baseline: fmt.percent(baselineRate), delta: ppText(t, fmt, delta) })
+                : t('anomaly.cache.detail', { baseline: fmt.percent(baselineRate) }))
               : t('anomaly.cache.detailNoBaseline', { rate }),
           };
         }
@@ -1378,13 +1721,21 @@ window.__ModuleLoader__.load({
         };
       }
       if (type === 'uncached-burst' && num(evidence.uncachedTokens) != null) {
-        return {
-          title: t('anomaly.uncached.title'),
-          detail: t('anomaly.uncached.detail', {
-            tokens: fmt.compact(evidence.uncachedTokens),
-            baseline: fmt.compact(evidence.baseline),
-          }),
-        };
+        const tokens = fmt.compact(evidence.uncachedTokens);
+        const baseline = fmt.compact(firstNum(evidence.uncachedBaselineTokens, evidence.baselineTokens, evidence.baseline));
+        const multiplier = firstNum(evidence.uncachedMultiplier, evidence.multiplier);
+        if (num(evidence.cacheHitRate) != null) {
+          return {
+            title: t('anomaly.uncached.title'),
+            detail: t('anomaly.uncached.detailActive', {
+              tokens,
+              baseline,
+              multiplier: fmt.ratio(multiplier),
+              cacheHitRate: fmt.percent(evidence.cacheHitRate),
+            }),
+          };
+        }
+        return { title: t('anomaly.uncached.title'), detail: t('anomaly.uncached.detail', { tokens, baseline }) };
       }
       if (type === 'request-spike' && num(evidence.requests) != null) {
         return {
@@ -1599,14 +1950,18 @@ window.__ModuleLoader__.load({
       }, props.children);
     }
 
-    /** Compact status pill with a colored dot. `level` is critical | warning | normal. */
+    /** Compact status pill with a colored dot. `level` is normal | notice | warning | critical. */
     function StatusPill(props) {
-      const level = props.level === 'critical' || props.level === 'warning' ? props.level : 'normal';
-      const label = props.level === 'critical' ? props.t('status.critical')
-        : props.level === 'warning' ? props.t('status.warning') : props.t('status.normal');
-      return h('span', { className: 'um-pill', 'data-level': level },
+      const level = statusLevelOf(props.level);
+      const labelKey = level === 'critical' ? 'status.critical'
+        : level === 'warning' ? 'status.warning'
+          : level === 'notice' ? 'status.notice' : 'status.normal';
+      const pill = h('span', { className: 'um-pill', 'data-level': level, role: 'status' },
         h('span', { className: 'um-dot', 'aria-hidden': true }),
-        label);
+        props.t(labelKey));
+      // Notice means "high usage, no efficiency evidence": explain it instead of alarming.
+      if (level === 'notice') return h(Tooltip, { text: props.t('status.noticeHint') }, pill);
+      return pill;
     }
 
     /** Share bar (0..1). */
@@ -2106,22 +2461,59 @@ window.__ModuleLoader__.load({
         tokens: fmt.compact(lastHour.tokens),
       });
 
-      const ratio = num(burn.ratio);
-      let burnSecondary = t('kpi.burnNoBaseline');
-      let burnLevel = null;
-      if (ratio != null) {
-        if (Math.abs(ratio - 1) < 0.05) burnSecondary = t('kpi.burnNormal');
-        else if (ratio > 1) burnSecondary = t('kpi.burnHigher', { ratio: fmt.ratio(ratio) });
-        else burnSecondary = t('kpi.burnLower', { ratio: fmt.ratio(ratio <= 0 ? 1 : 1 / ratio) });
-        burnLevel = burn.level === 'critical' ? 'critical' : burn.level === 'warning' ? 'warning' : 'normal';
-      }
-      const burnMeta = t('kpi.rateMeta', {
+      const activeBaseline = burn.activeBaseline && typeof burn.activeBaseline === 'object' ? burn.activeBaseline : null;
+      const warming = baselineWarmingOf(data);
+      const burnLevel = statusLevelOf(burn.level || data.status);
+      const activeRatio = num(burn.activeRatio);
+      const overallRatio = num(burn.overallRatio != null ? burn.overallRatio : burn.ratio);
+      const legacyRatio = num(burn.ratio);
+      const rateMeta = t('kpi.rateMeta', {
         requests: fmt.decimal(last1h.requestsPerMin),
         tokens: fmt.compact(last1h.tokensPerMin),
       });
-      const burnBaseline = num(baseline.costPerHour) != null
+      const baselineCost = num(baseline.costPerHour) != null
         ? t('kpi.burnBaseline', { amount: fmt.money(baseline.costPerHour) })
         : null;
+      let burnSecondary = null;
+      let burnSecondaryLevel = null;
+      let burnMeta = rateMeta;
+      if (warming) {
+        // Baseline still warming: show the current burn plus a neutral chip, never a ratio.
+        burnSecondary = h(Tooltip, {
+          text: t('kpi.learningBaselineHint', {
+            buckets: fmt.number(activeBaseline ? activeBaseline.activeBuckets : null),
+            minBuckets: fmt.number(activeBaseline ? activeBaseline.minActiveBuckets : (data.settings && data.settings.minActiveBuckets)),
+            hours: fmt.decimal(activeBaseline ? activeBaseline.coverageHours : null),
+            requests: fmt.number(activeBaseline ? activeBaseline.requests : null),
+          }),
+        }, h('span', { className: 'um-chip', 'data-level': 'notice' }, t('kpi.learningBaseline')));
+        burnMeta = t('kpi.learningBaselineMeta');
+      } else if (activeBaseline && activeRatio != null) {
+        if (burnLevel === 'notice') {
+          burnSecondary = t('kpi.noticeWording');
+          burnSecondaryLevel = 'notice';
+          burnMeta = [burnRatioText(t, fmt, activeRatio), overallRatio != null ? t('kpi.overallBaseline', { ratio: fmt.ratio(overallRatio) }) : null]
+            .filter(Boolean).join(DOT_SEP);
+        } else {
+          burnSecondary = burnRatioText(t, fmt, activeRatio);
+          burnSecondaryLevel = burnLevel === 'critical' ? 'critical' : burnLevel === 'warning' ? 'warning' : 'normal';
+          burnMeta = [overallRatio != null ? t('kpi.overallBaseline', { ratio: fmt.ratio(overallRatio) }) : null, rateMeta]
+            .filter(Boolean).join(DOT_SEP);
+        }
+      } else {
+        // Older Host without `burn.activeBaseline`: keep the previous 24h-average wording.
+        let legacySecondary = t('kpi.burnNoBaseline');
+        let legacyLevel = null;
+        if (legacyRatio != null) {
+          if (Math.abs(legacyRatio - 1) < 0.05) legacySecondary = t('kpi.burnNormal');
+          else if (legacyRatio > 1) legacySecondary = t('kpi.burnHigher', { ratio: fmt.ratio(legacyRatio) });
+          else legacySecondary = t('kpi.burnLower', { ratio: fmt.ratio(legacyRatio <= 0 ? 1 : 1 / legacyRatio) });
+          legacyLevel = statusLevelOf(burn.level);
+        }
+        burnSecondary = legacySecondary;
+        burnSecondaryLevel = legacyLevel === 'normal' ? null : legacyLevel;
+        burnMeta = baselineCost ? rateMeta + DOT_SEP + baselineCost : rateMeta;
+      }
 
       return h('div', { className: 'um-grid um-kpis' },
         h(Metric, {
@@ -2153,8 +2545,8 @@ window.__ModuleLoader__.load({
           value: num(last1h.costPerHour) != null ? t('kpi.perHour', { amount: fmt.money(last1h.costPerHour) }) : EM_DASH,
           est: num(last1h.costPerHour) != null,
           secondary: burnSecondary,
-          secondaryLevel: burnLevel,
-          meta: burnBaseline ? burnMeta + DOT_SEP + burnBaseline : burnMeta,
+          secondaryLevel: burnSecondaryLevel,
+          meta: burnMeta,
         }));
     }
 
@@ -2196,19 +2588,28 @@ window.__ModuleLoader__.load({
       const baselineRate = num(cache.baseline && cache.baseline.hitRate);
       const savings = cache.savings || {};
       const trend = Array.isArray(cache.trend) ? cache.trend : [];
+      const health = cacheHealthOf(cache);
+      const stateLevel = healthLevelOf(health.state);
+      const deltaClass = typeof cache.deltaClass === 'string' ? cache.deltaClass : (health.deltaClass || 'unknown');
 
+      // Delta copy is deadband-aware: a sub-5pp move is "steady", never a warning color.
       let deltaText = null;
       let deltaLevel = null;
-      if (delta != null) {
-        if (Math.abs(delta) < 0.005) deltaText = t('cache.deltaFlat');
-        else if (delta > 0) {
-          deltaText = t('cache.deltaUp', { delta: fmt.percentAbs(delta) + ' ' + t('unit.pp') });
-          deltaLevel = 'normal';
-        } else {
-          deltaText = t('cache.deltaDown', { delta: fmt.percentAbs(delta) + ' ' + t('unit.pp') });
-          deltaLevel = 'warning';
-        }
+      if (delta == null || deltaClass === 'unknown') {
+        deltaText = t('cache.deltaUnknown');
+      } else if (deltaClass === 'neutral') {
+        deltaText = t('cache.deltaNeutral', { delta: ppText(t, fmt, delta) });
+      } else {
+        deltaText = delta >= 0
+          ? t('cache.deltaUp', { delta: ppText(t, fmt, delta) })
+          : t('cache.deltaDown', { delta: ppText(t, fmt, delta) });
+        // Color follows the health state; a notice/warning-class drop points at the same level.
+        if (stateLevel === 'critical' || stateLevel === 'warning' || stateLevel === 'notice') deltaLevel = stateLevel;
+        else deltaLevel = deltaClass === 'warning' ? 'warning' : deltaClass === 'notice' ? 'notice' : null;
       }
+
+      const healthChip = h('span', { className: 'um-chip um-health-chip', 'data-level': stateLevel },
+        t('cache.health.' + (health.state || 'unknown')));
 
       const savingsLine = num(savings.amount) != null
         ? h('div', { className: 'um-cache-savings' },
@@ -2235,7 +2636,9 @@ window.__ModuleLoader__.load({
 
       return h(Card, { title: t('cache.title'), subtitle: t('cache.window'), className: 'um-cache-card' },
         h('div', { className: 'um-cache-top' },
-          h('div', { className: 'um-big' }, hitRate != null ? fmt.percent(hitRate) : EM_DASH),
+          h('div', { className: 'um-cache-headline' },
+            h('div', { className: 'um-big', 'data-level': stateLevel }, hitRate != null ? fmt.percent(hitRate) : EM_DASH),
+            healthChip),
           h('div', { className: 'um-cache-deltas' },
             deltaText ? h('div', { className: 'um-delta', 'data-level': deltaLevel || undefined }, deltaText) : null,
             baselineRate != null
@@ -2252,11 +2655,22 @@ window.__ModuleLoader__.load({
       const burn = (data && data.burn) || {};
       const cache = (data && data.cache) || {};
       const series = (data && data.series) || {};
+      const assessment = assessmentOf(data);
+      const metrics = (assessment && assessment.metrics) || {};
       const points = Array.isArray(series.points) ? series.points : [];
       const totals = seriesTotals(points);
       const now = num(burn.last5m && burn.last5m.requestsPerMin);
       const baseline = num(burn.baseline24h && burn.baseline24h.requestsPerMin);
-      const ratio = now != null && baseline != null && baseline > 0 ? now / baseline : null;
+      const overall24hRatio = now != null && baseline != null && baseline > 0 ? now / baseline : null;
+      // v0.1.1: compare against the median active-workload baseline, not the idle-diluted 24h mean.
+      const activeBaselineReady = Boolean(assessment)
+        && assessment.baselineStatus === 'ready'
+        && assessment.baselineWarming !== true
+        && num(metrics.requestBaselinePerMin) != null
+        && metrics.requestBaselinePerMin > 0
+        && num(metrics.requestsPerMin) != null;
+      const activeRatio = activeBaselineReady ? metrics.requestsPerMin / metrics.requestBaselinePerMin : null;
+      const warming = baselineWarmingOf(data);
       const minutes = rangeMinutes(range);
       const cachedFallback = cache.last24h || {};
       const inputTokens = totals.requests > 0
@@ -2267,8 +2681,20 @@ window.__ModuleLoader__.load({
       const uncachedTotal = totals.requests > 0 ? totals.uncached : num(cachedFallback.missTokens) || 0;
       const uncachedPerMin = requestCount > 0 ? uncachedTotal / minutes : null;
 
-      let rateSecondary = t('rate.noBaseline');
-      if (ratio != null) rateSecondary = t('rate.multiplier', { ratio: fmt.ratio(ratio) });
+      let rateSecondary = null;
+      let rateMeta = null;
+      if (activeRatio != null) {
+        rateSecondary = t('rate.multiplierActive', { ratio: fmt.ratio(activeRatio) });
+        rateMeta = overall24hRatio != null && baseline != null
+          ? t('rate.metaActive', { overall: fmt.ratio(overall24hRatio), baseline: fmt.decimal(baseline) })
+          : (baseline != null ? t('rate.baseline', { value: fmt.decimal(baseline) }) : null);
+      } else if (warming) {
+        rateSecondary = h('span', { className: 'um-chip', 'data-level': 'notice' }, t('kpi.learningBaseline'));
+        rateMeta = baseline != null ? t('rate.baseline', { value: fmt.decimal(baseline) }) : null;
+      } else {
+        rateSecondary = overall24hRatio != null ? t('rate.multiplier', { ratio: fmt.ratio(overall24hRatio) }) : t('rate.noBaseline');
+        rateMeta = baseline != null ? t('rate.baseline', { value: fmt.decimal(baseline) }) : null;
+      }
 
       return h(Card, { title: t('rate.title'), className: 'um-rate-card' },
         h('div', { className: 'um-rate-top' },
@@ -2276,10 +2702,8 @@ window.__ModuleLoader__.load({
             now != null ? fmt.decimal(now) : EM_DASH,
             now != null ? h('span', { className: 'um-big-unit' }, t('unit.reqPerMin')) : null),
           h('div', { className: 'um-cache-deltas' },
-            h('div', { className: 'um-muted' }, rateSecondary),
-            baseline != null
-              ? h('div', { className: 'um-muted' }, t('rate.baseline', { value: fmt.decimal(baseline) }))
-              : null)),
+            rateSecondary ? h('div', { className: 'um-muted' }, rateSecondary) : null,
+            rateMeta ? h('div', { className: 'um-muted' }, rateMeta) : null)),
         points.length
           ? h('div', { className: 'um-spark' },
             h(Sparkline, {
@@ -2398,8 +2822,121 @@ window.__ModuleLoader__.load({
             : null));
     }
 
+    /** Localized cache-diagnosis rows only (the secondary list inside the assessment panel). */
+    function diagnosisCauseRows(data, t, fmt) {
+      const cache = (data && data.cache) || {};
+      const diagnosis = Array.isArray(cache.diagnosis) ? cache.diagnosis : [];
+      const settings = (data && data.settings) || {};
+      const rows = [];
+      for (let i = 0; i < diagnosis.length; i += 1) {
+        const item = diagnosis[i];
+        if (!item) continue;
+        const localized = localizeDiagnosis(t, fmt, item, settings);
+        if (!localized.title && !localized.detail) continue;
+        rows.push({
+          key: 'diagnosis:' + (item.code || i),
+          severity: levelOf(item.severity),
+          title: localized.title,
+          detail: localized.detail || '',
+          evidence: item.evidence || null,
+        });
+      }
+      const rank = { critical: 0, warning: 1, notice: 2, info: 3 };
+      rows.sort((a, b) => rank[a.severity] - rank[b.severity]);
+      return rows;
+    }
+
+    /** One workload/efficiency evidence row from `assessment.*`. */
+    function AssessmentEvidenceRow(props) {
+      const { t, fmt, entry } = props;
+      const text = formatAssessmentEntry(t, fmt, entry);
+      if (!text) return null;
+      const values = entry.values && typeof entry.values === 'object' ? entry.values : {};
+      const sessionId = typeof values.sessionId === 'string' && values.sessionId ? values.sessionId : null;
+      return h('div', { className: 'um-evidence-row' },
+        h('span', { className: 'um-dot', 'data-level': levelOf(entry.severity), 'aria-hidden': true }),
+        h('span', { className: 'um-evidence-text' }, text),
+        sessionId ? h('span', { className: 'um-chip um-chip-mono', title: sessionId }, t('why.sessionChip')) : null);
+    }
+
+    function AssessmentEvidenceGroup(props) {
+      const { t, fmt, title, entries } = props;
+      const list = Array.isArray(entries) ? entries.filter((entry) => formatAssessmentEntry(t, fmt, entry)) : [];
+      if (!list.length) return null;
+      return h('div', { className: 'um-evidence-group' },
+        h('div', { className: 'um-evidence-title' }, title),
+        list.map((entry, index) => h(AssessmentEvidenceRow, { key: (entry && entry.code) || 'evidence-' + index, t, fmt, entry })));
+    }
+
+    /**
+     * v0.1.1 "Why is usage high?" panel: main driver, a plain-language assessment sentence,
+     * workload evidence, efficiency evidence, then the server cache diagnosis as a secondary
+     * list. A warming baseline gets a neutral explanation instead of any ratio claim.
+     */
+    function AssessmentPanel(props) {
+      const { t, fmt, data, assessment } = props;
+      const burn = (data && data.burn) || {};
+      const settings = (data && data.settings) || {};
+      const active = burn.activeBaseline && typeof burn.activeBaseline === 'object' ? burn.activeBaseline : null;
+      const warming = baselineWarmingOf(data) || assessment.baselineWarming === true;
+      const level = statusLevelOf(assessment.level);
+      const metrics = assessment.metrics && typeof assessment.metrics === 'object' ? assessment.metrics : {};
+      const workload = Array.isArray(assessment.workload) ? assessment.workload.filter(Boolean) : [];
+      const efficiency = Array.isArray(assessment.efficiency) ? assessment.efficiency.filter(Boolean) : [];
+      const driver = ['workload', 'cache', 'uncached', 'mixed', 'none'].indexOf(assessment.driver) >= 0 ? assessment.driver : 'none';
+      // Normal level with workload evidence only: call it a normal workload rather than "no anomaly".
+      const driverKey = driver === 'none' && workload.length > 0 ? 'normalWorkload' : driver;
+      const summaryKey = typeof assessment.summaryKey === 'string' ? assessment.summaryKey : (level === 'normal' ? 'normal' : 'elevated');
+      const diagnosisRows = diagnosisCauseRows(data, t, fmt);
+      const visibleDiagnosis = diagnosisRows.slice(0, MAX_CAUSES);
+      const parts = [];
+
+      if (warming) {
+        parts.push(h('div', { className: 'um-warming' },
+          h('div', { className: 'um-warming-title' }, t('why.warmingTitle')),
+          h('p', { className: 'um-warming-detail' }, t('why.warmingDetail', {
+            buckets: fmt.number(active ? active.activeBuckets : metrics.activeBuckets),
+            minBuckets: fmt.number(active ? active.minActiveBuckets : settings.minActiveBuckets),
+            hours: fmt.decimal(active ? active.coverageHours : null),
+            requests: fmt.number(active ? active.requests : null),
+          }))));
+      } else {
+        const levelChip = level === 'normal'
+          ? null
+          : h('span', { className: 'um-chip', 'data-level': level }, t('severity.' + (level === 'notice' ? 'notice' : level === 'warning' ? 'warning' : 'critical')));
+        parts.push(h('div', { className: 'um-driver-row' },
+          h('span', { className: 'um-driver-label' }, t('why.driverLabel')),
+          h('span', { className: 'um-chip', 'data-level': driverLevelOf(driverKey) }, t('why.driver.' + driverKey)),
+          levelChip));
+        parts.push(h('p', { className: 'um-assessment', 'data-level': level },
+          t(assessmentSentenceKey(summaryKey), assessmentSentenceParams(t, fmt, assessment))));
+      }
+
+      parts.push(h(AssessmentEvidenceGroup, { t, fmt, title: t('why.workloadGroup'), entries: workload }));
+      parts.push(h(AssessmentEvidenceGroup, { t, fmt, title: t('why.efficiencyGroup'), entries: efficiency }));
+      if (!warming && level === 'normal' && workload.length === 0 && efficiency.length === 0) {
+        parts.push(h('p', { className: 'um-muted-notes' }, t('why.emptyHint')));
+      }
+
+      parts.push(h('div', { className: 'um-subhead' }, t('why.diagnosticsTitle')));
+      if (visibleDiagnosis.length) {
+        parts.push(h('div', { className: 'um-cause-list' }, visibleDiagnosis.map((row) => h(CauseRow, { key: row.key, t, fmt, row }))));
+        if (diagnosisRows.length > visibleDiagnosis.length) {
+          parts.push(h('div', { className: 'um-more-note' }, t('why.more', { count: diagnosisRows.length - visibleDiagnosis.length })));
+        }
+      } else {
+        parts.push(h('p', { className: 'um-muted-notes' }, t('why.diagnosticsEmpty')));
+      }
+
+      return h(Card, { title: t('why.title'), className: 'um-why-card' },
+        h('div', { className: 'um-assessment-panel' }, ...parts));
+    }
+
     function DiagnosisCard(props) {
       const { t, fmt, data } = props;
+      const assessment = assessmentOf(data);
+      if (assessment) return h(AssessmentPanel, { t, fmt, data, assessment });
+      // Older Host without `assessment`: keep the previous derived-cause rendering.
       const rows = buildCauses(data, t, fmt);
       const visible = rows.slice(0, MAX_CAUSES);
       return h(Card, { title: t('why.title'), className: 'um-why-card' },
@@ -3160,7 +3697,11 @@ window.__ModuleLoader__.load({
       const fmt = useMemo(() => makeFormatters(lang, currency), [lang, currency]);
       const alerts = data ? firingAlerts(data.alerts) : [];
       const empty = Boolean(data) && usageCount(data) === 0;
-      const status = data && data.status ? data.status : null;
+      const status = data && data.status
+        ? data.status
+        : data && data.assessment && data.assessment.level
+          ? data.assessment.level
+          : null;
 
       let body = null;
       if (phase === 'unauthorized') {
@@ -3314,9 +3855,12 @@ window.__ModuleLoader__.load({
 .um-dot { width: 6px; height: 6px; border-radius: 50%; flex: none; background: currentColor; }
 .um-root [data-level='critical'] { color: var(--dsw-alias-state-error-primary); }
 .um-root [data-level='warning'] { color: var(--dsw-alias-state-warn-primary); }
+.um-root [data-level='notice'] { color: var(--dsw-alias-state-warn-primary); }
 .um-root [data-level='normal'], .um-root [data-level='success'] { color: var(--dsw-alias-state-success-primary); }
 .um-root [data-level='info'], .um-root [data-level='idle'] { color: var(--dsw-alias-state-idle-primary); }
 .um-pill[data-level='normal'] { border-color: color-mix(in srgb, var(--dsw-alias-state-success-primary) 35%, var(--dsw-alias-border-l1)); background: color-mix(in srgb, var(--dsw-alias-state-success-primary) 10%, var(--dsw-alias-bg-layer-1)); }
+.um-pill[data-level='notice'] { color: var(--dsw-alias-label-secondary); border-color: color-mix(in srgb, var(--dsw-alias-state-warn-primary) 35%, var(--dsw-alias-border-l1)); background: transparent; }
+.um-pill[data-level='notice'] .um-dot { background: var(--dsw-alias-state-warn-primary); }
 .um-pill[data-level='warning'] { border-color: color-mix(in srgb, var(--dsw-alias-state-warn-primary) 40%, var(--dsw-alias-border-l1)); background: color-mix(in srgb, var(--dsw-alias-state-warn-primary) 10%, var(--dsw-alias-bg-layer-1)); }
 .um-pill[data-level='critical'] { border-color: color-mix(in srgb, var(--dsw-alias-state-error-primary) 40%, var(--dsw-alias-border-l1)); background: color-mix(in srgb, var(--dsw-alias-state-error-primary) 10%, var(--dsw-alias-bg-layer-1)); }
 
@@ -3353,6 +3897,7 @@ window.__ModuleLoader__.load({
 .um-kpi-secondary { margin-top: 2px; font-size: 12px; line-height: 18px; }
 .um-kpi-secondary[data-level='critical'] { color: var(--dsw-alias-state-error-primary); }
 .um-kpi-secondary[data-level='warning'] { color: var(--dsw-alias-state-warn-primary); }
+.um-kpi-secondary[data-level='notice'] { color: var(--dsw-alias-state-warn-primary); }
 .um-kpi-secondary[data-level='normal'] { color: var(--dsw-alias-state-success-primary); }
 .um-kpi-meta { margin-top: 4px; color: var(--dsw-alias-label-secondary); font-size: 12px; line-height: 18px; overflow-wrap: anywhere; }
 .um-cost { display: inline-flex; align-items: baseline; gap: 5px; font-variant-numeric: tabular-nums; }
@@ -3445,11 +3990,16 @@ window.__ModuleLoader__.load({
 
 /* Cache / rate cards ----------------------------------------------------------------------- */
 .um-cache-top, .um-rate-top { display: flex; align-items: flex-end; justify-content: space-between; gap: 12px; }
+.um-cache-headline { display: flex; align-items: center; gap: 8px; min-width: 0; flex-wrap: wrap; }
+.um-health-chip { flex: none; }
 .um-big { font-family: var(--dsw-font-mono, ui-monospace, SFMono-Regular, Menlo, Consolas, monospace); font-size: 30px; line-height: 38px; font-weight: 600; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
 .um-big-unit { margin-left: 6px; font-family: inherit; font-size: 13px; line-height: 18px; font-weight: 400; letter-spacing: 0; color: var(--dsw-alias-label-secondary); font-variant-numeric: normal; }
 .um-cache-deltas { text-align: right; font-size: 12px; line-height: 18px; min-width: 0; }
+.um-delta { color: var(--dsw-alias-label-secondary); }
 .um-delta[data-level='normal'] { color: var(--dsw-alias-state-success-primary); }
+.um-delta[data-level='notice'] { color: var(--dsw-alias-state-warn-primary); }
 .um-delta[data-level='warning'] { color: var(--dsw-alias-state-warn-primary); }
+.um-delta[data-level='critical'] { color: var(--dsw-alias-state-error-primary); }
 .um-cache-chart { margin-top: 10px; }
 .um-mini-svg { display: block; width: 100%; height: 64px; }
 .um-spark { margin-top: 10px; }
@@ -3475,6 +4025,28 @@ window.__ModuleLoader__.load({
 .um-bar > i { display: block; height: 100%; border-radius: 2px; background: var(--dsw-alias-brand-primary); opacity: 0.65; }
 
 /* Diagnosis ("why is usage high") ---------------------------------------------------------- */
+.um-assessment-panel { display: flex; flex-direction: column; gap: 10px; }
+.um-warming {
+  border: 1px solid var(--dsw-alias-border-l1);
+  border-radius: 6px;
+  background: var(--dsw-alias-bg-layer-2);
+  padding: 10px 12px;
+}
+.um-warming-title { font-size: 12.5px; line-height: 18px; font-weight: 600; color: var(--dsw-alias-label-primary); }
+.um-warming-detail { margin-top: 3px !important; color: var(--dsw-alias-label-secondary); font-size: 12px; line-height: 18px; overflow-wrap: anywhere; }
+.um-driver-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.um-driver-label { color: var(--dsw-alias-label-secondary); font-size: 12px; line-height: 18px; }
+.um-assessment { color: var(--dsw-alias-label-primary); font-size: 12.5px; line-height: 19px; }
+.um-assessment[data-level='notice'] { color: var(--dsw-alias-state-warn-primary); }
+.um-assessment[data-level='warning'] { color: var(--dsw-alias-state-warn-primary); }
+.um-assessment[data-level='critical'] { color: var(--dsw-alias-state-error-primary); }
+.um-evidence-group { border-top: 1px solid var(--dsw-alias-border-l1); padding-top: 8px; }
+.um-evidence-title { color: var(--dsw-alias-label-secondary); font-size: 11px; line-height: 16px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 4px; }
+.um-evidence-row { display: flex; align-items: baseline; gap: 8px; padding: 3px 0; }
+.um-evidence-row .um-dot { flex: none; }
+.um-evidence-text { color: var(--dsw-alias-label-primary); font-size: 12px; line-height: 18px; overflow-wrap: anywhere; }
+.um-subhead { margin-top: 2px; color: var(--dsw-alias-label-secondary); font-size: 11px; line-height: 16px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; }
+.um-muted-notes { color: var(--dsw-alias-label-secondary); font-size: 12px; line-height: 18px; }
 .um-cause-list { display: flex; flex-direction: column; }
 .um-cause { display: flex; gap: 8px; padding: 9px 0; border-top: 1px solid var(--dsw-alias-border-l1); }
 .um-cause:first-child { border-top: 0; padding-top: 0; }

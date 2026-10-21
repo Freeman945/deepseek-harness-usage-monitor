@@ -17,7 +17,7 @@ import { API_PREFIX, UsageMonitor } from './lib/monitor.js';
 /** Host services this plugin cannot work without. */
 export const inject = ['webServer', 'connection', 'sessionPersistence'];
 
-const VERSION = '0.1.0';
+const VERSION = '0.1.1';
 
 /**
  * Mount the usage monitor.

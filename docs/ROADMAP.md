@@ -3,6 +3,15 @@
 This is a direction, not a promise. Items move when someone has a real use case and can verify
 the data source. Anything that would require a private API or an invented number stays out.
 
+## Recently shipped
+
+**v0.1.1 — anomaly quality and UX refinement.** Active-workload median baseline for burn rate,
+baseline warm-up with exposed confidence, evidence-gated severity (Normal / Notice / Warning /
+Critical, with Critical requiring corroborating efficiency evidence), a cache-delta deadband with
+an absolute-health floor, a "Why is usage high?" explanation that separates workload from
+efficiency evidence, and removal of the false-positive per-bucket burn-rate history. See
+[`CHANGELOG.md`](../CHANGELOG.md).
+
 ## Near term
 
 | Item | Why | Status |
@@ -11,6 +20,7 @@ the data source. Anything that would require a private API or an invented number
 | **Historical balance coverage** | Observed spend currently starts when the plugin first polls the wallet. Investigate whether any official, user-visible baseline exists that can extend coverage without guessing. | Research |
 | **Usage report export (CSV/JSON)** | Teams want to take the aggregates to a spreadsheet. Export the same snapshot data locally; no upload, no cloud. | Planned |
 | **Deeper cache diagnostics** | Improve cause attribution: more precise request-epoch boundaries, prompt-section fingerprints, and per-session cache trend without storing prompt text. | Planned |
+| **Baseline quality tuning** | Keep refining the active-workload baseline and the corroboration rules from real false-positive/false-negative reports, always as documented deterministic rules with configurable thresholds. | Ongoing |
 
 ## Later
 

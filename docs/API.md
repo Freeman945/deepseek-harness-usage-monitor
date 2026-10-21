@@ -32,13 +32,14 @@ All responses use `cache-control: no-store`. Error responses are
 interface Snapshot {
   schemaVersion: 1
   generatedAt: number                 // epoch ms
-  status: 'normal' | 'warning' | 'critical'
+  status: 'normal' | 'notice' | 'warning' | 'critical'
   locale: string                      // Harness UI locale ('en', 'zh', ...)
 
   currency: string | null             // display currency for estimates; from the wallet or settings
   balance: BalanceBlock
   cost: CostBlock
   burn: BurnBlock
+  assessment: Assessment              // workload vs efficiency explanation
   cache: CacheBlock
   series: SeriesBlock
   models: ModelRow[]
@@ -92,10 +93,72 @@ interface BurnBlock {
   last5m: Rate
   last30m: Rate
   last1h: Rate
-  baseline24h: Rate                   // average over the 24h before now
-  ratio: number | null                // last1h.costPerHour / baseline24h.costPerHour
-  ratioBasis: 'estimated' | 'observed'
-  level: 'normal' | 'warning' | 'critical'
+  baseline24h: Rate                   // arithmetic mean over the 23h before the current hour
+  activeBaseline: ActiveBaseline      // v0.1.1: median of buckets with real requests
+  ratio: number | null                // primary ratio: active ratio when ready, else overall ratio
+  activeRatio: number | null          // last1h.costPerHour / activeBaseline.costPerHour
+  overallRatio: number | null         // last1h.costPerHour / baseline24h.costPerHour
+  ratioKind: 'active' | 'overall' | null
+  ratioBasis: 'estimated'
+  level: 'normal' | 'notice' | 'warning' | 'critical'
+  reason:
+    | 'within-baseline' | 'high-burn-workload-only' | 'high-burn-with-evidence'
+    | 'efficiency-evidence' | 'baseline-warming' | 'baseline-unavailable'
+  baselineStatus: 'ready' | 'warming'
+}
+
+interface ActiveBaseline {
+  status: 'ready' | 'warming'
+  method: 'median-active' | 'none'
+  costPerHour: number | null          // median cost/hour across active 5-minute buckets
+  medianCostPerHour: number | null
+  meanCostPerHour: number | null
+  requestsPerMin: number | null       // median requests/min across active buckets
+  uncachedTokensPerMin: number | null
+  uncachedPerRequest: number | null   // median uncached input tokens per request
+  avgPromptTokens: number | null      // median prompt size per request
+  activeBuckets: number               // active buckets inside the 23h baseline window
+  windowBuckets: number
+  coverageHours: number | null        // observed history length, capped at 23h
+  requests: number                    // requests inside the baseline window
+  confidence: number                  // 0..1, based on buckets / requests / coverage
+  minActiveBuckets: number
+  minRequests: number
+  minCoverageHours: number
+  bucketMinutes: number
+}
+
+interface Assessment {
+  level: 'normal' | 'notice' | 'warning' | 'critical'
+  baselineStatus: 'ready' | 'warming'
+  baselineWarming: boolean
+  driver: 'none' | 'workload' | 'cache' | 'uncached' | 'mixed'
+  summaryKey: 'normal' | 'baseline-warming' | 'heavy-workload' | 'cache-problem' | 'uncached-burst' | 'mixed' | 'elevated'
+  workload: AssessmentEntry[]         // requests/min and context-size evidence
+  efficiency: AssessmentEntry[]       // cache-drop / uncached-burst / session-dominance evidence
+  metrics: {
+    burnPerHour: number | null
+    activeBaselinePerHour: number | null
+    overallBaselinePerHour: number | null
+    activeRatio: number | null
+    overallRatio: number | null
+    cacheHitRate: number | null
+    baselineCacheHitRate: number | null
+    cacheDelta: number | null
+    cacheDeltaClass: 'neutral' | 'notice' | 'warning' | 'unknown'
+    uncachedTokensPerMin: number | null
+    uncachedBaselinePerMin: number | null
+    requestsPerMin: number | null
+    requestBaselinePerMin: number | null
+    activeBuckets: number
+    confidence: number
+  }
+}
+
+interface AssessmentEntry {
+  code: 'request-rate' | 'context-growth' | 'cache-drop' | 'uncached-burst' | 'session-dominance'
+  severity: 'notice' | 'warning'
+  values: Record<string, string | number | boolean | null>
 }
 
 interface Rate {
@@ -112,7 +175,23 @@ interface CacheBlock {
   baseline: CacheWindow               // previous 24h (before the current hour)
   hitRate: number | null              // last1h.hitRate (the headline number)
   deltaVsBaseline: number | null      // hitRate - baseline.hitRate
-  savings: { amount: number | null; currency: string | null; note: string }
+  deltaClass: 'neutral' | 'notice' | 'warning' | 'unknown'  // deadband-aware classification
+  deltaDeadband: number               // default 0.05 (5 percentage points)
+  deltaNoticeThreshold: number        // default 0.15
+  health: {
+    state: 'healthy' | 'notice' | 'warning' | 'critical' | 'unknown'
+    absoluteHitRate: number | null
+    healthyRate: number               // default 0.9
+    deadband: number
+    deltaClass: 'neutral' | 'notice' | 'warning' | 'unknown'
+    reasonCode: 'steady' | 'high-absolute-hit-rate' | 'moderate-drop' | 'low-absolute-hit-rate'
+  }
+  savings: {
+    amount: number | null
+    currency: string | null
+    kind: 'avoided-extra-input-cost'
+    note: string                      // avoided extra cost, not a refund
+  }
   trend: CachePoint[]                 // bucket series matching `series.bucketMs`
   diagnosis: CacheDiagnosis[]
 }
@@ -208,7 +287,7 @@ interface ConsumerRow {
 interface Anomaly {
   id: string
   t: number
-  level: 'info' | 'warning' | 'critical'
+  level: 'info' | 'notice' | 'warning' | 'critical'
   type:
     | 'burn-rate' | 'cache-hit-drop' | 'cache-low' | 'uncached-burst' | 'request-spike'
     | 'input-growth' | 'expensive-model-share' | 'cost-spike' | 'session-dominance'
@@ -232,7 +311,7 @@ interface Forecast {
 interface Alert {
   id: string
   level: 'warning' | 'critical'
-  type: 'balance-low' | 'burn-rate' | 'cache-low' | 'cost-spike' | 'uncached-burst'
+  type: 'balance-low' | 'burn-rate' | 'cache-low' | 'cache-hit-drop' | 'cost-spike' | 'uncached-burst'
   title: string
   detail: string
   Since?: never
@@ -276,6 +355,19 @@ interface Settings {
   retentionDays: number               // 1..30
   scanIntervalSeconds: number         // full rescan interval, default 60
   exposeDiagnosticsFile: boolean      // write $DSH_HOME/usage-monitor/status.json for support
+  // v0.1.1 anomaly-quality settings (all optional, safe defaults, old files load unchanged)
+  minimumActiveRequests: number       // default 1; requests for a 5-min bucket to count as active
+  minActiveBuckets: number            // default 6; active buckets needed for a ready baseline
+  baselineMinRequests: number         // default 30; requests in the baseline window
+  baselineMinCoverageHours: number    // default 1; observed-history hours needed for "ready"
+  cacheDeltaDeadband: number          // default 0.05 (5pp); below this the delta is neutral
+  cacheDeltaNotice: number            // default 0.15 (15pp); above this it is a warning-class drop
+  cacheHealthyRate: number            // default 0.9; absolute hit rate treated as healthy
+  criticalRequiresSecondaryEvidence: boolean  // default true
+  uncachedBurstMultiplier: number     // default 3; uncached tokens per request vs active baseline
+  uncachedBurstMinTokens: number      // default 10000 absolute floor
+  sessionDominanceShare: number       // default 0.7; corroborating only, never alone
+  contextGrowthMultiplier: number     // default 1.8; average prompt size vs active baseline
 }
 ```
 
@@ -283,12 +375,26 @@ Empty states are data, not errors:
 
 - No session logs yet → `diagnostics.data.requestsInRetention === 0`, all token blocks zero,
   `cache.hitRate === null`, series points all zero.
+- Baseline not ready yet → `burn.activeBaseline.status === 'warming'`, `assessment.baselineWarming
+  === true`, `burn.level === 'normal'`; burn-rate alerts stay off until the baseline is ready.
 - Signed out → `balance.state === 'signed-out'`, `balance.primary === null`, observed spend
   `null`, estimates still work when `currency` is configured.
 - Balance API failure → `balance.state === 'error'` with `error` string; previous snapshots
   keep `observedSince` and spend history.
 - Unknown model → `priced: false`, `cost: null`; it still appears in model rows and token
   totals.
+
+## Severity semantics (v0.1.1)
+
+- `notice` means "usage is high for your normal active workload, but there is no evidence that
+  spending is inefficient". A heavy task alone must never be `critical`.
+- `warning` requires either a sustained absolute cache problem, a cost-spike threshold, or at
+  least one strong efficiency signal (cache drop below `cacheHealthyRate`, or uncached tokens
+  per request above the active baseline × `uncachedBurstMultiplier`).
+- `critical` requires high burn versus the active baseline **and** at least one strong
+  efficiency signal (unless `criticalRequiresSecondaryEvidence` is disabled).
+- Cache deltas inside `cacheDeltaDeadband` are neutral; absolute hit rates at or above
+  `cacheHealthyRate` remain healthy unless the drop itself is warning-class.
 
 ## Settings write
 
@@ -302,7 +408,7 @@ Invalid values are clamped and reported under `diagnostics.warnings` in the retu
 
 - Sidebar entry: `sidebar.panellist` with `id: 'usage-monitor'`, order `20`, label from locale.
 - Page: `main` with `key: 'usage-monitor'`.
-- Settings surface: only the in-page settings drawer in v0.1.0; the plugin does **not** register a
+- Settings surface: only the in-page settings drawer in v0.1.1; the plugin does **not** register a
   separate `settings.section` page (advanced options remain available through the plugin row
   config and the settings API).
 - UI text comes from the plugin's own locale dictionaries (`ctx.locale.register`), with

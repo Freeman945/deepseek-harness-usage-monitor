@@ -66,7 +66,8 @@ its own and ships zero runtime dependencies.
 | System prompt evidence | only a truncated SHA-256 hash and UUID/timestamp **counts** are kept | Not reversible |
 
 Retention defaults to 14 days and is configurable (1–30 days). There is no cloud backup, sync or
-export endpoint in v0.1.0.
+export endpoint in v0.1.1. The v0.1.1 anomaly-quality changes only added derived fields and
+settings; they collect no new data, store no prompt text and add no network request.
 
 ## Threat model and known boundaries
 
@@ -95,7 +96,7 @@ export endpoint in v0.1.0.
   major versions (`actions/checkout@v4`, `actions/setup-node@v4`).
 - The plugin is installed from source as a DSH bundle by absolute path; there is no published npm
   package and `"private": true` prevents accidental publishing.
-- Release checklist: `npm run check`, `npm test`, `node scripts/security-audit.mjs`,
+- Release checklist: `npm test`, `npm run check`, `npm run audit`,
   `npm run verify:live` against a real local install, then confirm that `docs/screenshots/`
   contains only real local-run captures with private data redacted.
 

@@ -19,12 +19,12 @@ English | [简体中文](README.zh.md)
 
 ![Usage Monitor dashboard — dark theme, Simplified Chinese UI](docs/screenshots/dashboard.png)
 
-![Cache and request cards plus the anomaly timeline from the same dashboard](docs/screenshots/cache-anomaly.png)
+![Why is usage high? Workload evidence vs efficiency evidence, and the evidence-only anomaly timeline](docs/screenshots/why-usage-high.png)
 
 Both images are real captures from a local DeepSeek Harness run with the plugin installed (dark
 theme, Chinese UI; the UI is fully localized in English and Chinese). Wallet amounts are redacted;
-no mock or demo data is shown. The second image stacks two regions of the same dashboard:
-cache/request cards and the anomaly timeline.
+no mock or demo data is shown. The second image stacks two regions of the same dashboard: the
+workload-vs-efficiency assessment and the evidence-only anomaly timeline plus forecast.
 
 ---
 
@@ -34,12 +34,12 @@ cache/request cards and the anomaly timeline.
 |---|---|
 | **Real balance monitoring** | Reads the signed-in DeepSeek account wallet through Harness's official account service. Recharge and bonus wallets are shown separately. No currency conversion, no invented balance. |
 | **Token usage** | Provider-reported input, output, cache-read and cache-write tokens from durable Session logs, refreshed live while a Session runs. |
-| **Burn rate** | Estimated spend per hour over the last 5 min / 30 min / 1 hour, compared with the previous 23-hour baseline. |
+| **Burn rate** | Estimated spend per hour over the last 5 min / 30 min / 1 hour, compared with a **median active-workload baseline** built from 5-minute buckets that actually had requests; the 23-hour arithmetic mean is kept for context. |
 | **Cost windows** | Today, last hour, last 24 hours, last 7 days and this month — each with an `Est.` (tokens × price table) and, where coverage exists, an `Observed` (real wallet decrease) number. |
-| **Cache monitoring** | Cache hit rate with the same formula Harness uses, delta vs the preceding 24-hour window, estimated savings from cache hits, and a per-bucket trend. |
+| **Cache monitoring** | Cache hit rate with the same formula Harness uses, a deadband-aware delta vs the preceding 24-hour window, an absolute-health state, estimated **avoided extra input cost** (not a refund), and a per-bucket trend. |
 | **Agent / session / model usage** | Top consumers by session, by task (conversation turn), by agent preset / subagent, by uncached token cost, plus a per-model breakdown. |
-| **Anomaly detection** | Deterministic rules for burn-rate spikes, low cache hit rate, uncached-input bursts, cost spikes, cache-problem correlation, request spikes, low balance — with a 24-hour timeline and "returned to normal" entries. |
-| **Alerts** | The same conditions surface as alerts with the time they started; balance-threshold alerts are configurable. |
+| **Evidence-gated anomaly detection** | Normal / Notice / Warning / Critical: high burn on its own is a Notice, Warning needs a real efficiency signal, and Critical requires high burn **and** corroborating evidence. Active-workload baselines, warm-up, a cache deadband, and a 24-hour timeline with "returned to normal" entries. |
+| **Alerts** | Only warning/critical conditions become alerts with the time they started; notices stay informational. Balance-threshold alerts are configurable. |
 | **Trends** | Usage charts for 1 h, 6 h, 24 h and 7 d with automatic bucket sizes. |
 | **Forecast** | Estimated daily cost and estimated remaining balance time at the current burn rate, with the basis stated. |
 | **Light / dark, English / Chinese** | Uses Harness theme tokens and the active Harness locale. |
@@ -54,7 +54,7 @@ cache/request cards and the anomaly timeline.
 | Requirement | Detail |
 |---|---|
 | DeepSeek Harness | **0.2.1-rc.2** (desktop or web profile) |
-| Plugin version | **0.1.0** |
+| Plugin version | **0.1.1** |
 | Node.js | **≥ 20** (DSH bundles its own Node; this matters only for development) |
 | DeepSeek account | Signed in under **Settings → Account** for the real balance. Token and estimated-cost panels work without it. |
 | API key | **Not needed.** The plugin never asks for, reads or stores one. |
@@ -121,12 +121,13 @@ often than `balanceRefreshSeconds` (default 45 seconds, configurable 20–600).
 | Number | Meaning | Honest caveat |
 |---|---|---|
 | **Balance** | The real wallet amount from your DeepSeek account, recharge and bonus wallets shown separately. | Requires being signed in. Never converted between CNY and USD. |
-| **Burn rate** | Estimated spend per hour for the last 5 min / 30 min / 1 hour, and its ratio to the previous 23-hour average. | Estimated: tokens × official price table. |
-| **Cache hit rate** | `cacheRead / (cacheRead + input + cacheWrite)` for the last hour, plus the change vs the preceding 24-hour window. | Same formula as Harness's own usage display. |
+| **Burn rate** | Estimated spend per hour for the last 5 min / 30 min / 1 hour, and its ratio to the **median active-workload baseline** (with the 23-hour average ratio shown as context). | Estimated: tokens × official price table. High burn alone is not called abnormal. |
+| **Cache hit rate** | `cacheRead / (cacheRead + input + cacheWrite)` for the last hour, plus a deadband-aware change vs the preceding 24-hour window and an absolute-health state. | Same formula as Harness's own usage display. Changes under 5 percentage points are noise. |
+| **Cache avoided cost** | The estimated extra input cost the cache hits avoided (`Est.`): cached tokens priced at the cache-hit rate instead of the cache-miss rate. | Not a refund or a platform credit. It is a counterfactual estimate. |
 | **`Est.` amounts** | Tokens × the official DeepSeek price table, peak/off-peak aware. | An estimate, **not** a provider invoice. |
 | **`Observed` amounts** | Real money: the decrease of your wallet between balance polls, summed over the window. | Starts when monitoring starts; no historical backfill. Marked incomplete until the window is fully covered. |
 | **Top consumers** | Sessions, tasks (turns), agent presets and uncached-token cost rankings. | Attribution comes from Session metadata, not a per-request agent name. |
-| **Why is usage high?** | Cache diagnostics and anomaly evidence for the current window. | It reports correlated evidence, never a proven provider-side root cause. |
+| **Why is usage high?** | Separates workload evidence (request rate, context size) from efficiency evidence (cache drop, uncached burst, session dominance) and names the main driver. | Evidence, not a proven provider-side root cause. |
 | **Forecast** | Estimated daily cost and estimated remaining balance time at the recent burn rate. | A projection from recent usage, not a guarantee. |
 
 Use the **range switch** (1 h / 6 h / 24 h / 7 d) to change the trend chart, and the **gear** to
@@ -139,8 +140,10 @@ entries.
 There is **no environment variable, no `.env` file and no API key** to create. The thresholds and
 intervals you normally tune live in the dashboard's **Settings** drawer; they are validated,
 clamped, persisted in `$DSH_HOME/usage-monitor/settings.json`, and take precedence over bundle
-defaults. A few advanced fields are accepted by the Host but have no drawer control in v0.1.0 and
-are set through the bundle row or the settings API (see below).
+defaults. A few advanced fields — including the v0.1.1 anomaly-quality settings — are accepted by
+the Host but have no drawer control yet and are set through the bundle row or the settings API (see
+below). An existing `settings.json` from v0.1.0 loads unchanged; the new keys simply inherit their
+defaults.
 
 ### In the Settings drawer
 
@@ -148,12 +151,12 @@ are set through the bundle row or the settings API (see below).
 |---|---|---|
 | `currency` | `auto` | `auto` follows the signed-in wallet; `CNY` / `USD` force the price table. No conversion. |
 | `balanceRefreshSeconds` | `45` | 20–600. Minimum interval between wallet reads. |
-| `warningBurnRatio` | `2` | Burn rate ≥ this multiple of the 23-hour baseline → warning. |
-| `criticalBurnRatio` | `4.5` | Burn rate ≥ this multiple → critical. Raised to the warning value if set lower. |
-| `cacheWarningRate` | `0.5` | Cache hit rate below this → warning (must hold for `cacheAlertMinutes`). |
-| `cacheCriticalRate` | `0.3` | Cache hit rate below this → critical. Lowered to the warning value if set higher. |
+| `warningBurnRatio` | `2` | Burn rate ≥ this multiple of the **active-workload baseline** → Warning (Notice without secondary evidence). |
+| `criticalBurnRatio` | `4.5` | Burn rate ≥ this multiple → Critical **only with** corroborating evidence, otherwise Notice. Raised to the warning value if set lower. |
+| `cacheWarningRate` | `0.5` | Absolute cache hit rate below this → warning-level cache health (must hold for `cacheAlertMinutes`). |
+| `cacheCriticalRate` | `0.3` | Absolute cache hit rate below this → critical-level cache health. Lowered to the warning value if set higher. |
 | `cacheAlertMinutes` | `10` | 1–240. Sustained minutes before a low-cache alert fires. |
-| `requestRateWarningMultiplier` | `2` | Reserved multiplier for request-rate conditions. |
+| `requestRateWarningMultiplier` | `2` | Request rate (last 15 min) ≥ this multiple of the active requests/min baseline → workload Notice. |
 | `costSpike10m` | `5` | Display-currency amount spent in 10 minutes that counts as a spike. |
 | `balanceAlerts` | `[50, 20, 10]` | Display-currency thresholds; the first breached one fires, the lowest breached one is critical. |
 | `retentionDays` | `14` | 1–30. Request rows and wallet samples older than this are pruned. |
@@ -164,12 +167,24 @@ These fields are validated by the same allow-list but are not in the drawer yet.
 bundle row `config` (they seed defaults until a `settings.json` exists — delete that file to re-seed)
 or POST them to `/api/usage-monitor/settings` from the signed-in Harness page.
 
-| Setting | Default | Notes |
+| Setting | Default | Range / notes |
 |---|---|---|
 | `scanIntervalSeconds` | `60` | 15–600. Full Session rescan interval (live events are still incremental). |
 | `holidays` | `[]` | `YYYY-MM-DD` Chinese public holiday dates; they switch estimates to off-peak pricing. |
 | `pricingOverrides` | `{}` | Per-model or per-tier `{cacheHit, cacheMiss, output}` prices per 1M tokens, in the display currency. |
 | `exposeDiagnosticsFile` | `true` | Writes `$DSH_HOME/usage-monitor/status.json` (no prompts, no credentials) for support. Set `false` to disable. |
+| `minimumActiveRequests` | `1` | 1–1000. Requests in a 5-minute bucket for it to count as active workload. |
+| `minActiveBuckets` | `6` | 2–288. Active buckets required before the baseline is `ready`. |
+| `baselineMinRequests` | `30` | 1–1,000,000. Requests in the 23-hour baseline window required for `ready`. |
+| `baselineMinCoverageHours` | `1` | 0.25–24. Observed history needed for `ready`. |
+| `cacheDeltaDeadband` | `0.05` | 0–0.5. Cache deltas smaller than this (5 percentage points by default) are neutral. |
+| `cacheDeltaNotice` | `0.15` | 0.02–0.95; forced above the deadband. Deltas above this are warning-class. |
+| `cacheHealthyRate` | `0.9` | 0–1; raised to `cacheWarningRate` if lower. Absolute hit rate treated as healthy. |
+| `criticalRequiresSecondaryEvidence` | `true` | When `false`, high burn alone can be Critical (not recommended). |
+| `uncachedBurstMultiplier` | `3` | 1.2–20. Uncached tokens per request vs the active baseline. |
+| `uncachedBurstMinTokens` | `10000` | 0–1,000,000,000. Absolute floor before an uncached burst counts. |
+| `sessionDominanceShare` | `0.7` | 0.3–1. One-session share of recent uncached tokens treated as dominance (corroborating only). |
+| `contextGrowthMultiplier` | `1.8` | 1.1–10. Average prompt size vs the active baseline that counts as context growth. |
 
 ### Bundle-row defaults
 
@@ -192,42 +207,122 @@ save settings in the page; after that the saved settings win.
 
 The plugin does **not** use machine learning, EWMA or an opaque score. Every condition is a
 deterministic rule over the retained samples; each has a stable ID so the timeline can remember
-when it started and when it recovered. The thresholds are configurable in the Settings drawer.
+when it started and when it recovered. Baselines are transparent arithmetic means and medians over
+fixed windows.
 
-**Windows and baseline.** Request samples are bucketed per minute. The baseline is the previous
-23 hours, excluding the current hour. Baselines are plain arithmetic means over fixed windows —
-there is no median smoothing, no EWMA and no learned weights:
+### Active-workload baseline
+
+Request samples are bucketed per 5 minutes. The overall 24-hour arithmetic mean is retained for
+display and context, but it is **not** the primary alert trigger: for a low-frequency user it is
+dominated by idle hours, so a normal concentrated task can look dramatic against it.
+
+The primary ratio compares the last hour with the **median active-workload baseline**:
 
 ```text
-burn(window).costPerHour  = estimated cost in window / window hours
-baseline24h.costPerHour   = estimated cost in [now − 24h, now − 1h] / 23
-burnRatio                 = burn(last1h).costPerHour / baseline24h.costPerHour
+active bucket             = a 5-minute bucket with requests ≥ minimumActiveRequests (default 1)
+activeBaseline.costPerHour = median(active bucket cost × 12)      over [now − 24h, now − 1h]
+activeRatio               = burn(last1h).costPerHour / activeBaseline.costPerHour
+overallRatio              = burn(last1h).costPerHour / baseline24h.costPerHour   (display context)
 ```
+
+The same active buckets also supply median requests per minute, median uncached tokens per request
+and median prompt tokens; those are the comparison points for workload and efficiency evidence.
+
+**Warm-up.** The baseline is `ready` only when the 23-hour window contains at least
+`minActiveBuckets` (6) active buckets, at least `baselineMinRequests` (30) requests and at least
+`baselineMinCoverageHours` (1 hour) of observed history. Until then it is `warming`, a confidence
+value (0..1) is exposed, burn severity stays Normal and burn-rate alerts are suppressed. The
+dashboard shows "Learning baseline".
+
+### Severity levels
+
+| Level | Meaning | What it takes (defaults) |
+|---|---|---|
+| Normal | Nothing unusual. | Ratio within the baseline and no efficiency evidence. |
+| Notice / Elevated | Usage is high for your normal active workload, but there is no evidence that spending is inefficient. | Burn ratio ≥ `warningBurnRatio` (2), or ≥ `criticalBurnRatio` (4.5), **without** secondary evidence. A heavy task alone lands here — it is never an alert. |
+| Warning | A concrete condition or a likely efficiency problem. | At least one strong efficiency signal (cache drop below the healthy absolute rate, or an uncached-token burst), an absolute cache problem, or the 10-minute cost spike. |
+| Critical | High burn **and** corroborating efficiency evidence. | Burn ratio ≥ `criticalBurnRatio` (4.5) **and** at least one strong efficiency signal. Setting `criticalRequiresSecondaryEvidence: false` lets high burn alone reach Critical (not recommended). |
+
+### Secondary evidence
+
+| Evidence | Kind | Rule (defaults) |
+|---|---|---|
+| `request-rate` | workload | requests/min over the last 15 minutes ≥ 2× the active requests/min baseline (and ≥ 1/min) |
+| `context-growth` | workload | last-hour average prompt size ≥ 1.8× the active prompt baseline |
+| `cache-drop` | efficiency | cache delta ≤ −5 percentage points **and** absolute hit rate < 90% |
+| `uncached-burst` | efficiency | ≥ 10,000 uncached tokens in the last 30 minutes **and** ≥ 3× the active uncached tokens per request **and** absolute hit rate < 90% |
+| `session-dominance` | corroborating only | one session ≥ 70% of recent uncached tokens; recorded only when another efficiency signal already exists, never as a standalone alert |
+
+With `criticalRequiresSecondaryEvidence` enabled, `cache-drop` and `uncached-burst` are the two
+signals that can escalate burn severity. `session-dominance` only helps explain an existing problem.
+
+### Conditions in the timeline
 
 | Condition | Exact rule (defaults) | Level |
 |---|---|---|
-| `burn-rate` | `burnRatio ≥ warningBurnRatio` (2) → warning; `≥ criticalBurnRatio` (4.5) → critical | warning / critical |
+| `burn-anomaly` | combined burn + efficiency condition, emitted only at Warning/Critical; the type is `cache-hit-drop`, `uncached-burst` or `burn-rate` depending on the evidence | warning / critical |
 | `cache-low` | last-hour hit rate `< cacheWarningRate` (0.5) continuously for `cacheAlertMinutes` (10) → warning; `< cacheCriticalRate` (0.3) → critical | warning / critical |
 | `cost-spike` | estimated cost of the last 10 minutes `> costSpike10m` (5 display-currency units) | warning |
-| `uncached-burst` | uncached input tokens in the last 30 min `> 3 ×` the 23-hour average per 30 min **and** `> 10,000` tokens | warning |
-| `cache-problem-correlated` | `burnRatio ≥ 1.5` **and** last-hour hit rate fell `≥ 0.15` below the previous 24-hour rate | critical |
 | `balance-low` | wallet below a configured threshold (default 50 / 20 / 10); the lowest breached threshold is critical | warning / critical |
 | `recovered` | a previously active condition has been inactive for ≥ 2 minutes | info |
 
+Only **Warning** and **Critical** active conditions become alerts. A Notice changes the dashboard
+status pill and the explanation, but it does not create an alert.
+
 **Historical ledger.** The timeline also reconstructs 24 hours of 5-minute buckets from the stored
-request rows:
+request rows, but only for evidence-backed events:
 
-- `burn-rate` — a bucket whose cost is ≥ `warningBurnRatio` / `criticalBurnRatio` times the 24-hour
-  average cost per 5-minute bucket;
-- `cache-hit-drop` — a bucket with ≥ 5 requests whose hit rate is more than 0.20 below the 24-hour
-  average;
-- `request-spike` — a bucket with more than 4× the average request count and at least 8 requests.
+- `cache-hit-drop` — a bucket with ≥ 5 requests whose hit rate is below the 50% absolute warning
+  rate, or fell ≥ 15 percentage points versus the 24-hour average while still below 90%;
+- `request-spike` — a bucket with more than 4× the average request count and at least 8 requests
+  (informational).
 
-Consecutive buckets of the same type are merged, and the newest 20 historical entries are shown.
+Per-bucket burn-rate reconstruction was removed in v0.1.1 because it was the main source of
+false-positive timeline entries: one heavy task could paint many "anomaly" buckets. The live
+assessment above already covers real burn anomalies. Consecutive buckets of the same type are
+merged, and the newest 20 historical entries are shown.
 
 **What it is not:** there is no seasonal adjustment, no holiday awareness for usage (only for
 pricing), no absolute-token alarm, and every monetary rule is computed on the *estimated* cost,
 not on the wallet. The wallet is used only by `balance-low` and by observed spend.
+
+## Understanding burn-rate alerts
+
+**High burn rate does not always mean abnormal usage.** A long tool-using turn, a large context, or
+a batch of parallel subagents naturally costs more per hour than an idle session. v0.1.1 is designed
+to label that work honestly instead of alarming on it.
+
+*Illustrative:* a low-frequency user can be around 8.5× their overall 24-hour average while sitting
+at about 0.6× their active-workload baseline — the first ratio is large because the average includes
+idle hours, while the second says the current pace is normal for their actual work. The plugin alerts
+on the active-workload comparison, not on the idle-inclusive average.
+
+### How the decision is made
+
+1. **Baseline gate.** If the active baseline is still warming (fresh install, or less than about an
+   hour / 6 active 5-minute buckets / 30 requests of history), burn severity is Normal and
+   burn-rate alerts are off. The dashboard shows "Learning baseline" with a confidence value.
+2. **Compare active work.** The last hour's estimated cost per hour is divided by the median
+   active-workload cost per hour. The 24-hour arithmetic mean is shown next to it for context only.
+3. **Collect evidence.** Workload signals (request rate, context size) and efficiency signals
+   (cache drop, uncached burst, and corroborating session dominance) are gathered from the same data.
+4. **Grade.** High burn without evidence is a **Notice** (shown as elevated/high usage). Warning
+   needs at least one strong efficiency signal or a concrete condition; **Critical needs high burn
+   and strong evidence**.
+5. **Alert.** Only Warning and Critical become alerts; a Notice stays informational in the status
+   pill, the assessment and the timeline.
+
+### What each level means for you
+
+| Level | What to do |
+|---|---|
+| Normal | Nothing; usage is within the active-workload baseline. |
+| Notice / Elevated | The work is heavy, not necessarily wasteful. Check "Top consumers" to see which session/turn is driving it; no action needed unless the cost itself surprises you. |
+| Warning | Open "Why is usage high?" and the cache diagnostics. A cache drop or uncached-token burst explains the extra cost; the evidence is listed with the numbers behind it. |
+| Critical | High burn and strong evidence agree. Treat it as a real efficiency problem: inspect the cache evidence, the affected session, and the toolset/system-prompt changes recorded there. |
+
+Nothing here is a budget or a prediction: thresholds compare *estimated* cost, the baseline is your
+own recent active history, and the wallet remains the only authoritative money value.
 
 ## Cache diagnostics
 
@@ -250,8 +345,8 @@ back with recorded evidence (in the "Why is usage high?" panel):
 | **TTL gap** | Gaps > 30 min between usage samples, and the hit rate of the first samples after each gap | Provider cache likely expired during inactivity |
 | **Timestamp / UUID in prefix** | Regex counts of ISO-like timestamps and UUIDs inside system-message text (counts only, never the text) | A per-request timestamp/UUID makes every prefix different |
 | **Cache not reported** | Sessions where more samples report zero cache counters than reported ones | The model/provider may not support prefix caching |
-| **Context growth** | Average prompt size in the last hour > 1.8× the previous 24-hour average | Context growth does not break the prefix, but it makes every miss more expensive |
-| **Hit-rate drop / correlation** | Last-hour hit rate vs previous 24 hours; combined with burn ratio | Misses are a likely cost driver |
+| **Context growth** | Average prompt size in the last hour ≥ 1.8× the active-workload prompt baseline | Context growth does not break the prefix, but it makes every miss more expensive |
+| **Hit-rate drop / correlation** | Last-hour hit rate vs the preceding 24-hour window, classified with the 5pp deadband and the 90% absolute-health floor; only a genuine drop becomes a diagnosis, and correlation with the active burn ratio is reported separately | Misses are a likely cost driver |
 
 Causes are only evaluated for sessions with at least 5,000 uncached input tokens in the last hour
 and a hit rate below the global 24-hour rate.
@@ -261,6 +356,41 @@ A recorded header change may be caused by a Harness configuration change rather 
 a timestamp in the system prompt may be intentional; a TTL gap is inferred from request timing,
 not reported by the provider. These are labeled as *possible* causes, not findings. The system
 prompt itself is never stored — only a truncated hash and counts.
+
+## How to interpret cache savings
+
+The number on the cache card is labeled **Estimated avoided input cost**, not "savings" as money
+back. It answers a counterfactual question: *if the cached prompt tokens had been billed at the
+cache-miss rate, how much more would the same requests have cost?*
+
+```text
+avoided extra input cost = Σ over requests of cacheReadTokens × (cacheMissPrice − cacheHitPrice) / 1,000,000
+                           over the last 24 hours
+```
+
+- It is computed per request with that request's model, timestamp (peak/off-peak) and configured
+  price overrides, then summed.
+- It is an estimate of **avoided extra cost** — not a refund, not a platform credit, not money
+  added to your wallet, and not a discount you can spend.
+- It can be large simply because a workload has large prompts and a good hit rate; by itself it
+  does not mean anything is wrong or unusually good.
+
+### The hit-rate delta is deadband-aware
+
+The card also compares the last hour's hit rate with the preceding 24-hour window
+(`[now − 24h, now − 1h]`). v0.1.1 classifies the difference instead of treating every move as a
+problem:
+
+| Absolute delta | Class (defaults) | Effect |
+|---|---|---|
+| < 5 percentage points (`cacheDeltaDeadband`) | neutral | Treated as noise. 99.7% → 99.0% is a 0.7pp move and stays healthy. |
+| 5–15 percentage points | notice | Worth a look; only becomes a problem if the absolute hit rate is also low. |
+| ≥ 15 percentage points (`cacheDeltaNotice`) | warning-class | Warning when the absolute hit rate is also below the healthy floor (`cacheHealthyRate`, 90%); above that floor it remains a notice. |
+
+Absolute health uses fixed floors: below `cacheWarningRate` (50%) is warning-level, below
+`cacheCriticalRate` (30%) is critical. The 90% healthy floor is what keeps a high-hit-rate cache
+from being flagged by small relative drops. Low-traffic windows can produce
+`deltaClass: "unknown"`; nothing is inferred from too few requests.
 
 ## Data & privacy
 
@@ -289,17 +419,20 @@ install — no dependencies, no build step.
 ```bash
 npm test                          # node --test test/*.test.js
 npm run check                     # syntax, JSON, manifests, secrets, docs
-node scripts/security-audit.mjs   # secrets/PII, working tree + Git history
+npm run audit                     # secrets/PII: working tree + Git history
 npm run verify:live               # requires a live install: cross-checks the status file,
                                   # state.json and the raw Session logs / Harness projection cache
 ```
+
+CI runs the first three commands (the audit through `npm run audit`); `verify:live` needs a local
+Harness install with the plugin running.
 
 | Path | Responsibility |
 |---|---|
 | `index.js` | Host entry: `apply`, `inject`, route registration, index injection |
 | `lib/monitor.js` | Engine: Session scanning, live events, wallet polling, HTTP, lifecycle |
 | `lib/ingest.js` | Session-event folding: usage counters and cache signals |
-| `lib/analytics.js` | Snapshot aggregation: windows, burn, cache, anomalies, consumers, forecast |
+| `lib/analytics.js` | Snapshot aggregation: windows, burn severity, active baseline, assessment, cache, anomalies, consumers, forecast |
 | `lib/pricing.js` | Official price table, peak/off-peak rule, cost estimates |
 | `lib/store.js` | Settings validation, atomic local state, retention |
 | `client.js` | Browser half: sidebar entry, dashboard, settings drawer, i18n |
@@ -313,7 +446,7 @@ reload. Delete `$DSH_HOME/usage-monitor/` to reset state while testing.
 
 **Screenshots:** only real captures from a local Harness run are committed — never mockups. Run
 the plugin, open the dashboard, capture the window, redact wallet amounts/session titles/paths, and
-save as `docs/screenshots/dashboard.png` and `docs/screenshots/cache-anomaly.png`.
+save as `docs/screenshots/dashboard.png` and `docs/screenshots/why-usage-high.png`.
 
 More detail: [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md),
 [`docs/DATA-SOURCES.md`](docs/DATA-SOURCES.md), [`docs/API.md`](docs/API.md),
@@ -337,6 +470,16 @@ More detail: [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md),
    be read; token and estimated-cost panels still work.
 7. **Estimates are not a bill.** There is no Harness-side cost calculator and no provider
    billing-history API; per-session/model amounts are token counts × the published price table.
+8. **The active-workload baseline needs warm-up.** Burn-rate alerts stay off until the previous
+   23 hours contain about an hour of observed history, at least `minActiveBuckets` (6) active
+   5-minute buckets and `baselineMinRequests` (30) requests. A fresh install shows "Learning
+   baseline" instead of guessing.
+9. **Cache-delta classification needs a ready baseline** (and enough recent cache requests). The
+   deadband and absolute-health floor prevent small drops from alerting, but a low-traffic window
+   can leave the delta `unknown` rather than inventing a classification.
+10. **Session dominance is corroborating only.** A single large task legitimately dominates one
+    session, so session share never creates an alert by itself; it is shown only to explain an
+    efficiency signal found elsewhere.
 
 ## Roadmap
 

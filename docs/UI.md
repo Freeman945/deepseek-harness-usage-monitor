@@ -79,24 +79,55 @@ The `main` slot owns the whole central panel: `.um-root` is a full-height flex r
 is the self-scrolling page; `.um-page` caps at 1220 px and pads `24px 32px 56px` (plus the macOS
 frame top clearance token when present). Rendering order, top to bottom:
 
-1. compact header — title, status pill (`normal` / `warning` / `critical`), last-updated time,
-   Refresh and Settings icon buttons;
-2. firing alerts only (`since > 0`, critical first);
-3. KPI row — balance (primary wallet + bonus), today, last hour, burn rate with ratio line;
+1. compact header — title, status pill (`normal` / `notice` / `warning` / `critical`), last-updated
+   time, Refresh and Settings icon buttons;
+2. firing alerts only (`since > 0`, critical first; `notice` never becomes an alert);
+3. KPI row — balance (primary wallet + bonus), today, last hour, burn rate. The burn card's primary
+   line is the active-baseline ratio in one consistent shape ("{x}× active baseline" /
+   "活跃基线的 {x}×", with a "(below normal) /（低于基线）" suffix when the ratio is under 1) and the
+   24 h-average ratio stays muted; while the baseline is warming it shows a neutral "Learning
+   baseline" chip and no ratio at all; a `notice` level shows "High usage, no efficiency anomaly
+   evidence" instead of an alarming ratio;
 4. usage trend card with the 1 h / 6 h / 24 h / 7 d switch and hover tooltip;
-5. two-up: cache hit rate (big %, baseline delta, mini trend with baseline band, hit/miss/write
-   tokens, estimated savings) and request rate (req/min vs baseline, sparkline, avg input per
-   request, uncached input per minute);
+5. two-up: cache hit rate (big % tinted by `cache.health.state`, health chip, deadband-aware delta,
+   mini trend with baseline band, hit/miss/write tokens, "avoided input cost") and request rate.
+   The request card compares against the median **active** baseline whenever
+   `assessment.metrics.requestsPerMin` / `requestBaselinePerMin` exist and the baseline is ready
+   ("N× the active baseline" / "是活跃基线的 N×"), with the idle-diluted 24 h ratio and baseline
+   demoted to the muted meta line ("20.3× the 24h average · baseline 0.6 req/min"). Warming shows a
+   neutral "Learning baseline" chip with the 24 h wording; snapshots without the assessment keep
+   the old 24 h-only comparison;
 6. two-up: top consumers (tabs: sessions / tasks / agent presets / uncached tokens) and model
    usage (requests, tokens, hit rate, cost, share bar);
-7. "Why is usage high?" — `cache.diagnosis` plus causes derived only from snapshot values: burn
-   ratio vs configured threshold, cache hit-rate delta, top uncached session share, model cost
-   share. Severity-sorted; calm empty state when nothing fires;
+7. "Why is usage high?" — built from the structured `assessment` block (see below) instead of
+   ad-hoc derived bullets: a warming-baseline explanation, the main driver, a plain-language
+   assessment sentence, a "Workload evidence" group, an "Efficiency evidence" group, then the
+   server cache diagnosis as a secondary "Cache diagnostics" list. A `normal` level that still has
+   workload evidence is labelled "Normal workload / 正常高负载" rather than "No abnormal usage";
 8. anomaly timeline, newest first (the session chip is informational — Harness has no public
-   client API to open a session from a plugin, so it is deliberately not a link);
+   client API to open a session from a plugin, so it is deliberately not a link). `notice` entries
+   use the amber dot, information entries the idle dot;
 9. forecast strip (daily cost, remaining time, basis note);
 10. footer (data sources, scan status, localized diagnostics-warning count with the raw Host
     strings in the `title`, privacy line).
+
+### v0.1.1 severity presentation
+
+The UI mirrors the Host's evidence-gated levels so a heavy task never looks like a cache problem:
+
+| Level | Status pill | Meaning in the UI |
+|---|---|---|
+| `normal` | green dot, neutral label | usage within the active baseline and healthy cache |
+| `notice` | amber dot, **transparent** neutral label, tooltip | high usage for the normal active workload, **no efficiency evidence**; never red |
+| `warning` | warn-tinted pill | at least one strong efficiency signal, a sustained low hit rate, or a cost spike |
+| `critical` | error-tinted pill | high burn **and** corroborating efficiency evidence |
+
+The cache card follows `cache.health.state`: `healthy` → success tint + "Healthy" chip, `notice` →
+muted amber, `warning` → warn, `critical` → error, `unknown` → idle. A delta inside
+`cache.deltaDeadband` renders as "steady (±X pp)" with no warn color even when it is slightly
+negative. `assessment.summaryKey` selects the assessment sentence; `assessment.driver` selects
+the "Main driver" chip. While `burn.activeBaseline.status === 'warming'` the UI says so with the
+collected bucket/coverage/request counts and makes no ratio or anomaly claim.
 
 The Settings drawer is an in-flow right-hand panel (`.um-drawer`, 344 px) inside the page, not a
 modal/portal. Below 860 px it overlays the page's right edge; Escape closes it. Inputs are
@@ -112,25 +143,46 @@ uncontrolled-string drafts converted to numbers on save.
   Large token counts use `notation: 'compact'`; the exact value rides in the element `title`.
   Durations/buckets use `Intl.NumberFormat` unit formatting, so they localize without dictionary
   entries.
-- Dictionaries are flat key maps (`en`, `zh`) with identical key sets (289 keys); `t('kpi.rateMeta')`
+- Dictionaries are flat key maps (`en`, `zh`) with identical key sets (340 keys); `t('kpi.rateMeta')`
   style keys include a namespace prefix. Dynamic families (`severity.*`, `evidence.*`,
-  `status.*`, `condition.*`, `diag.*`) are resolved by prefix.
+  `status.*`, `condition.*`, `diag.*`, `why.driver.*`, `why.assessment.*`, `cache.health.*`) are
+  resolved by prefix.
 - **Host-authored copy is localized client-side from structured fields, never by translating the
   English strings.** The Host sends `code` / `type` / `evidence` (and `sessionTitle`) next to its
   English title/detail; `localizeDiagnosis`, `localizeAlert` and `localizeAnomaly` switch on those
   identifiers and rebuild the copy from `diag.<code>.*`, `alert.<type>.*` and `anomaly.<type>.*`
   templates. Covers all 13 `cache.diagnosis` codes, every alert type (`burn-rate`, `cache-low`,
-  `cost-spike`, `uncached-burst`, `balance-low`) and every anomaly type (`burn-rate`,
-  `cache-hit-drop` including the cache-problem variant, `cache-low`, `uncached-burst`,
-  `request-spike`, `input-growth`, `expensive-model-share`, `cost-spike`, `session-dominance`,
-  `balance-low`, `recovered`). When an unknown code/type arrives or its required evidence is
-  missing, the Host title/detail is shown unchanged — that English fallback is intentional and is
-  the only place Host copy reaches the screen.
+  `cache-hit-drop`, `cost-spike`, `uncached-burst`, `balance-low`) and every anomaly type
+  (`burn-rate`, `cache-hit-drop` including the cache-problem variant, `cache-low`,
+  `uncached-burst`, `request-spike`, `input-growth`, `expensive-model-share`, `cost-spike`,
+  `session-dominance`, `balance-low`, `recovered`). v0.1.1 evidence (`activeRatio`, `overallRatio`,
+  `cacheHitRate`, `baselineCacheHitRate`, `cacheDelta`, `uncachedBaselineTokens`,
+  `uncachedMultiplier`, …) is preferred; the older field names remain as fallbacks, and an unknown
+  code/type or missing required evidence shows the Host title/detail unchanged.
+- `formatAssessmentEntry` localizes the five evidence codes (`request-rate`, `context-growth`,
+  `cache-drop`, `uncached-burst`, `session-dominance`), keeping evaluation order and numbers
+  identical to `assessment.workload` / `assessment.efficiency`. `assessmentSentenceKey` maps
+  `summaryKey` to the sentence templates; `assessmentSentenceParams` supplies cache hit-rates and
+  the uncached multiplier.
+- **Backward compatibility:** `assessmentOf`, `baselineWarmingOf`, `cacheHealthOf` and the burn KPI
+  branch detect missing v0.1.1 fields. Without `assessment` the panel falls back to the old derived
+  causes; without `burn.activeBaseline` the KPI keeps the 24 h-average wording; without
+  `cache.health` the card derives a conservative delta-class/health state from the old fields.
+- Cache savings are labelled "Estimated avoided input cost" / "缓存避免的理论额外费用" with a
+  tooltip stating the counterfactual (cached input re-priced at the cache-miss rate) and that it is
+  **not a refund or platform credit**.
 - `evidenceChips` formats each evidence value by semantic kind: `*rate` keys as percentages
   (signed for `*delta`/`*change`, clamped 0–100% otherwise), `*Tokens`/averages as compact counts,
   money keys (`last10mCost`, `threshold`, `balance`, `bonus`) as currency (wallet currency when the
   evidence carries one), ratios with `×`. Opaque internals (`currency`, `initial`, `series`) are
   skipped; at most four chips render.
+- The `Est.` badge stays "Est." in both locales because the README and API use that exact badge
+  name; its tooltip is localized. Every estimated cost — KPI cards, consumer rows, model rows,
+  forecast, cache savings — goes through `CostValue`/`Metric`, so the badge is never omitted.
+- Consumer "share of uncached input" causes divide the row by the summed `uncachedTokens` of the
+  `consumers.sessions` rows (not `costShare`, not the cache window) and clamp the result to 100%
+  before formatting. Percentage-point deltas inside assessment/alerts use `ppText` (e.g. "26 pp" /
+  "26 个百分点"), never a double percent sign.
 - The `Est.` badge stays "Est." in both locales because the README and API use that exact badge
   name; its tooltip is localized. Every estimated cost — KPI cards, consumer rows, model rows,
   forecast, cache savings — goes through `CostValue`/`Metric`, so the badge is never omitted.
@@ -186,11 +238,22 @@ status tokens: success = normal, warn = warning, error = critical, idle = inform
 5. Range switch: hover the trend chart (crosshair, tooltip, no stretched strokes); verify the
    bucket size note changes. On 1 h/6 h/7 d, press Refresh — the "Updating range…" hint may blink
    briefly while the 24 h snapshot is replaced by the selected range.
-6. Signed-out state (Settings → Account): balance card shows "Not signed in" copy, estimates stay.
-7. Settings drawer: save a valid change (state replaced, "Settings saved."), then a clamp case
-   (e.g. critical burn ratio below warning) to see the Host-adjusted message, then network-off to
-   see the inline failure. Invalid local input shows field errors without a request.
-8. No usage yet (fresh home): empty-state card, no chart axes, footer diagnostics count present.
+6. **Notice vs warning:** a normal heavy task must render the amber-dot, transparent "Elevated"
+   pill (tooltip explains no inefficiency evidence), the burn KPI must read "High usage, no
+   efficiency anomaly evidence", the cache card must stay "Healthy", and the panel must show a
+   "Heavy workload" driver with workload evidence only. A real cache drop must render the tinted
+   "Warning" pill, an amber/red cache health chip, a colored delta, and "Cache efficiency" driver
+   with efficiency evidence.
+7. **Baseline warming:** on a fresh history the burn KPI shows the neutral "Learning baseline"
+   chip (tooltip has buckets/coverage/requests), no ratio is displayed, and the panel shows the
+   neutral "Learning the active baseline" explanation.
+8. **Neutral cache delta:** a sub-5 pp move (including a slightly negative one) renders
+   "steady (±X pp)" in muted text with a Healthy chip — no warn color.
+9. Signed-out state (Settings → Account): balance card shows "Not signed in" copy, estimates stay.
+10. Settings drawer: save a valid change (state replaced, "Settings saved."), then a clamp case
+    (e.g. critical burn ratio below warning) to see the Host-adjusted message, then network-off to
+    see the inline failure. Invalid local input shows field errors without a request.
+11. No usage yet (fresh home): empty-state card, no chart axes, footer diagnostics count present.
 
 ## Known limitations
 
@@ -202,9 +265,12 @@ status tokens: success = normal, warn = warning, error = critical, idle = inform
   identifier or an entry without its required evidence renders the Host's English title/detail
   unchanged (the intended fallback); the footer likewise shows only a localized count of
   `diagnostics.warnings`, with the raw Host strings in the `title`.
+- The v0.1.1 assessment panel is deliberately read-only: it explains the Host's decision and does
+  not re-score or override it. When a snapshot predates `assessment` the panel falls back to the
+  previous derived-cause list.
 - The drawer does not expose the advanced settings (`scanIntervalSeconds`, `holidays`,
-  `pricingOverrides`, `exposeDiagnosticsFile`) added after this UI was scoped; the API and bundle
-  row accept them.
+  `pricingOverrides`, `exposeDiagnosticsFile`, and the v0.1.1 baseline/deadband thresholds); the
+  API and bundle row accept them.
 - `_demo: true` fixtures must never be rendered or embedded; the UI has no demo mode and reads only
   the authenticated snapshot endpoint.
 - Visual verification requires the running Harness page; `node --check`, the repository checks and

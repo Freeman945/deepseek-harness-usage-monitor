@@ -56,3 +56,45 @@ test('state normalization drops a foreign version instead of guessing', () => {
   assert.equal(restored.requests.length, 1);
   assert.deepEqual(restored.sessions, { a: {} });
 });
+
+test('v0.1.1 anomaly settings load with safe defaults from an old settings file', () => {
+  // An old settings.json has none of the new keys; normalizeSettings must fill
+  // them, not fail, and must keep the v0.1.0 values.
+  const oldFile = {
+    currency: 'CNY',
+    warningBurnRatio: 2,
+    criticalBurnRatio: 4.5,
+    cacheWarningRate: 0.5,
+    cacheCriticalRate: 0.3,
+  };
+  const { settings, errors } = normalizeSettings(oldFile, DEFAULT_SETTINGS);
+  assert.equal(settings.currency, 'CNY');
+  assert.equal(settings.minimumActiveRequests, 1);
+  assert.equal(settings.minActiveBuckets, 6);
+  assert.equal(settings.cacheDeltaDeadband, 0.05);
+  assert.equal(settings.cacheDeltaNotice, 0.15);
+  assert.equal(settings.cacheHealthyRate, 0.9);
+  assert.equal(settings.criticalRequiresSecondaryEvidence, true);
+  assert.equal(errors.length, 0);
+});
+
+test('v0.1.1 settings are clamped and cross-field rules hold', () => {
+  const { settings, errors } = normalizeSettings({
+    minimumActiveRequests: 9999,
+    minActiveBuckets: 1,
+    cacheDeltaDeadband: 0.4,
+    cacheDeltaNotice: 0.1,
+    cacheHealthyRate: 100,
+    criticalRequiresSecondaryEvidence: false,
+    uncachedBurstMultiplier: 0.1,
+    sessionDominanceShare: 2,
+  });
+  assert.equal(settings.minimumActiveRequests, 1000);
+  assert.equal(settings.minActiveBuckets, 2);
+  assert.equal(settings.cacheDeltaNotice > settings.cacheDeltaDeadband, true);
+  assert.equal(settings.cacheHealthyRate, 1);
+  assert.equal(settings.criticalRequiresSecondaryEvidence, false);
+  assert.equal(settings.uncachedBurstMultiplier, 1.2);
+  assert.equal(settings.sessionDominanceShare, 1);
+  assert.ok(errors.length >= 1);
+});
