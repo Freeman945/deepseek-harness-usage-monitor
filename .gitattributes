@@ -1,0 +1,7 @@
+# Normalize line endings in the repository so the plugin behaves the same on
+# every platform. Markdown and JS use LF; images are binary.
+* text=auto eol=lf
+*.png binary
+*.jpg binary
+*.ico binary
+*.webp binary
