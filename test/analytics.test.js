@@ -101,16 +101,24 @@ test('cost windows are estimated and observed independently', () => {
   assert.equal(typeof lastHour.observedComplete, 'boolean');
 });
 
-test('burn ratio compares the last hour to the previous 23h baseline', () => {
+test('burn rate compares the last hour to a median active baseline', () => {
   const sessions = { 'session-a': createSessionRecord({ id: 'session-a', createdAt: NOW - 30 * HOUR }) };
   const rows = [];
-  // Quiet day: one small request every hour for 20 hours.
-  for (let index = 0; index < 20; index += 1) rows.push(row({ t: NOW - (index + 2) * HOUR, step: index, input: 100, cacheRead: 900 }));
-  // Hot last hour.
-  for (let index = 0; index < 20; index += 1) rows.push(row({ t: NOW - 55 * 60_000 + index * 60_000, step: 100 + index, input: 5000, cacheRead: 100_000 }));
+  // Ten active 5-minute buckets 20 hours ago: a real, if light, working history.
+  for (let bucket = 0; bucket < 10; bucket += 1) {
+    for (let request = 0; request < 4; request += 1) {
+      rows.push(row({ t: NOW - 20 * HOUR + bucket * 5 * 60_000 + request * 30_000, step: 1000 + bucket * 10 + request, input: 100, cacheRead: 9000, output: 50 }));
+    }
+  }
+  // A normal but heavy task now: 120 requests in 30 minutes, cache healthy.
+  for (let request = 0; request < 120; request += 1) {
+    rows.push(row({ t: NOW - 30 * 60_000 + request * 15_000, step: request, input: 100, cacheRead: 9000, output: 50 }));
+  }
   const snapshot = build(baseState(rows, sessions));
-  assert.ok(snapshot.burn.ratio > 2, 'burn ratio reflects the hot hour');
-  assert.ok(['warning', 'critical'].includes(snapshot.burn.level));
+  assert.equal(snapshot.burn.activeBaseline.status, 'ready');
+  assert.ok(snapshot.burn.activeRatio > 2, 'active ratio reflects the hot hour');
+  assert.equal(snapshot.burn.level, 'notice', 'high burn alone is a notice, not an anomaly');
+  assert.equal(snapshot.status, 'notice');
 });
 
 test('cache diagnosis only reports causes with recorded evidence', () => {
@@ -192,4 +200,135 @@ test('range selection changes the series resolution', () => {
   assert.equal(day.series.bucketMs, 15 * 60_000);
   assert.equal(week.series.range, '7d');
   assert.equal(week.series.bucketMs, HOUR);
+});
+
+// ---------------------------------------------------------------------------
+// v0.1.1 anomaly-quality scenarios
+// ---------------------------------------------------------------------------
+
+/**
+ * Ten active 5-minute buckets ~20h ago, four requests each. Gives the active
+ * baseline enough buckets, requests and coverage to be "ready".
+ */
+function historyRows({ input = 100, cacheRead = 9000, output = 50 } = {}) {
+  const rows = [];
+  for (let bucket = 0; bucket < 10; bucket += 1) {
+    for (let request = 0; request < 4; request += 1) {
+      rows.push(
+        row({
+          t: NOW - 20 * HOUR + bucket * 5 * 60_000 + request * 30_000,
+          step: 1000 + bucket * 10 + request,
+          input,
+          cacheRead,
+          output,
+        }),
+      );
+    }
+  }
+  return rows;
+}
+
+/** Requests spread over the last 30 minutes (default: 60). */
+function recentRows({ input = 100, cacheRead = 9000, output = 50, count = 60 } = {}) {
+  const rows = [];
+  for (let request = 0; request < count; request += 1) {
+    const stride = Math.floor((30 * 60_000) / count);
+    rows.push(row({ t: NOW - 30 * 60_000 + request * stride, step: request, input, cacheRead, output }));
+  }
+  return rows;
+}
+
+function sessionsFor() {
+  return { 'session-a': createSessionRecord({ id: 'session-a', createdAt: NOW - 30 * HOUR, cwd: 'D:\\work\\demo', agentPreset: 'cordis' }) };
+}
+
+test('case 1: a normal heavy task is Elevated, not Critical', () => {
+  const rows = [...historyRows(), ...recentRows({ count: 120 })];
+  const snapshot = build(baseState(rows, sessionsFor()));
+  assert.equal(snapshot.burn.activeBaseline.status, 'ready');
+  assert.equal(snapshot.cache.health.state, 'healthy');
+  assert.equal(snapshot.burn.level, 'notice');
+  assert.equal(snapshot.status, 'notice');
+  assert.equal(snapshot.assessment.driver, 'workload');
+  assert.equal(snapshot.assessment.baselineWarming, false);
+  assert.deepEqual(snapshot.assessment.efficiency, []);
+  assert.equal(snapshot.alerts.length, 0);
+  assert.equal(snapshot.anomalies.filter((anomaly) => anomaly.type === 'burn-rate').length, 0);
+});
+
+test('case 2: high burn plus a cache collapse is Critical with evidence', () => {
+  const rows = [...historyRows({ input: 1000, cacheRead: 9000 }), ...recentRows({ input: 8000, cacheRead: 2000 })];
+  const snapshot = build(baseState(rows, sessionsFor()));
+  assert.equal(snapshot.status, 'critical');
+  assert.equal(snapshot.burn.level, 'critical');
+  assert.equal(snapshot.cache.health.state, 'critical');
+  const codes = snapshot.assessment.efficiency.map((entry) => entry.code);
+  assert.ok(codes.includes('cache-drop'));
+  assert.ok(codes.includes('uncached-burst'));
+  assert.ok(snapshot.alerts.some((alert) => ['cache-hit-drop', 'uncached-burst', 'burn-rate'].includes(alert.type)));
+  assert.ok(snapshot.cache.diagnosis.some((cause) => cause.code === 'cache-problem-correlated'));
+});
+
+test('case 3: a fresh install only warms the baseline up, no false alert', () => {
+  const rows = [];
+  for (let request = 0; request < 30; request += 1) {
+    rows.push(row({ t: NOW - 10 * 60_000 + request * 20_000, step: request }));
+  }
+  const snapshot = build(baseState(rows, sessionsFor()));
+  assert.equal(snapshot.burn.activeBaseline.status, 'warming');
+  assert.equal(snapshot.assessment.baselineWarming, true);
+  assert.equal(snapshot.burn.level, 'normal');
+  assert.equal(snapshot.status, 'normal');
+  assert.equal(snapshot.alerts.length, 0);
+  assert.ok(snapshot.diagnostics.warnings.some((warning) => warning.includes('warming up')));
+  assert.ok(snapshot.burn.activeBaseline.confidence < 1);
+});
+
+test('case 4: 99.7% to 99% cache delta stays healthy and neutral', () => {
+  const rows = [...historyRows({ input: 30, cacheRead: 9970, output: 20 }), ...recentRows({ input: 100, cacheRead: 9900, output: 20 })];
+  const snapshot = build(baseState(rows, sessionsFor()));
+  assert.equal(snapshot.cache.deltaClass, 'neutral');
+  assert.equal(snapshot.cache.health.state, 'healthy');
+  assert.equal(snapshot.cache.deltaVsBaseline < 0, true);
+  assert.equal(snapshot.alerts.some((alert) => alert.type === 'cache-hit-drop' || alert.type === 'cache-low'), false);
+  assert.notEqual(snapshot.status, 'warning');
+  assert.notEqual(snapshot.status, 'critical');
+  assert.equal(snapshot.cache.diagnosis.some((cause) => cause.code === 'cache-hit-drop'), false);
+});
+
+test('case 5: a request-rate spike with a healthy cache is a workload signal', () => {
+  const rows = [...historyRows(), ...recentRows({ count: 120 })];
+  const snapshot = build(baseState(rows, sessionsFor()));
+  assert.ok(snapshot.assessment.workload.some((entry) => entry.code === 'request-rate'));
+  assert.equal(snapshot.assessment.driver, 'workload');
+  assert.equal(snapshot.assessment.efficiency.some((entry) => entry.code === 'cache-drop'), false);
+  assert.equal(snapshot.cache.health.state, 'healthy');
+  assert.ok(['notice', 'normal'].includes(snapshot.status));
+  assert.equal(snapshot.alerts.length, 0);
+});
+
+test('case 6: a cache drop with an uncached burst is at least Warning', () => {
+  const rows = [...historyRows({ input: 1000, cacheRead: 9000 }), ...recentRows({ input: 4000, cacheRead: 8000 })];
+  const snapshot = build(baseState(rows, sessionsFor()));
+  assert.ok(['warning', 'critical'].includes(snapshot.status));
+  assert.ok(['warning', 'critical'].includes(snapshot.burn.level));
+  const codes = snapshot.assessment.efficiency.map((entry) => entry.code);
+  assert.ok(codes.includes('cache-drop'));
+  assert.ok(codes.includes('uncached-burst'));
+  assert.ok(snapshot.alerts.length > 0);
+});
+
+test('case 7: low-frequency user keeps a huge overall ratio but no false alert', () => {
+  // Only ten active buckets in the 23h baseline window: the arithmetic 24h
+  // average is tiny, so the old rule would scream. The active baseline sees the
+  // real working pace and the moderate hour stays Normal.
+  const rows = [...historyRows(), ...recentRows({ count: 60 })];
+  const snapshot = build(baseState(rows, sessionsFor()));
+  assert.equal(snapshot.burn.activeBaseline.status, 'ready');
+  assert.ok(snapshot.burn.overallRatio > 5, 'overall 24h ratio is still dramatic');
+  assert.ok(snapshot.burn.activeRatio < 2, 'active ratio shows a normal working pace');
+  assert.equal(snapshot.burn.level, 'normal');
+  assert.equal(snapshot.status, 'normal');
+  assert.equal(snapshot.alerts.length, 0);
+  assert.equal(snapshot.anomalies.some((anomaly) => anomaly.type === 'burn-rate'), false);
 });
