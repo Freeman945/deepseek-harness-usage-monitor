@@ -1,0 +1,6 @@
+{
+  "meta": {
+    "title": "用量监控",
+    "description": "实时查看 DeepSeek Harness 的余额、Token 用量、缓存命中率与异常消耗。"
+  }
+}

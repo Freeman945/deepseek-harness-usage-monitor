@@ -1,0 +1,11 @@
+# DSH Usage Monitor bundle: inserts the plugin's Host row. The Client half is
+# declared by `dsh.client` in package.json and registered by the same package.
+- insert:
+    - id: usage-monitor
+      name: deepseek-harness-usage-monitor
+      config:
+        # Balance wallet polling interval. The plugin never calls the balance
+        # endpoint more often than this, and never per dashboard refresh.
+        balanceRefreshSeconds: 45
+        # 14 days keeps the 7-day trend and a margin for late writes.
+        retentionDays: 14

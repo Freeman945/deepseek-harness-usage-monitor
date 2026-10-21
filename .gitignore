@@ -1,0 +1,31 @@
+# Dependencies and build output
+node_modules/
+dist/
+coverage/
+
+# Secrets and credentials — never commit
+.env
+.env.*
+*.key
+*.pem
+credentials*
+secrets*
+cookies*
+*.db
+*.sqlite
+*.sqlite3
+
+# Local runtime data, logs and caches
+logs/
+cache/
+*.log
+usage-monitor-data/
+state.json
+status.json
+
+# OS / editor noise
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
