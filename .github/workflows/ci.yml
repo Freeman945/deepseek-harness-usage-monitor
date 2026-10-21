@@ -1,0 +1,53 @@
+name: CI
+
+# Public CI for the Usage Monitor plugin: syntax/manifest checks, the Node test
+# runner, and the repository security audit. It uses no secrets, installs no
+# dependencies (the plugin has none) and never calls a paid API.
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    name: Node ${{ matrix.node-version }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        node-version: ['20', '22', '24']
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          # Full history so the security audit can scan every commit.
+          fetch-depth: 0
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+
+      - name: Repository checks (syntax, JSON, manifests, docs, secrets)
+        run: npm run check
+
+      - name: Unit tests (Node test runner)
+        shell: bash
+        run: |
+          if ls test/*.test.js >/dev/null 2>&1; then
+            npm test
+          else
+            echo "No test/*.test.js files are present; unit tests are skipped for this checkout."
+          fi
+
+      - name: Security and privacy audit
+        run: node scripts/security-audit.mjs
