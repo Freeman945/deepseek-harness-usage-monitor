@@ -18,10 +18,11 @@
 
 ![用量监控面板——深色主题、中文界面](docs/screenshots/dashboard.png)
 
-![同一仪表盘的缓存/请求卡片与异常时间线](docs/screenshots/cache-anomaly.png)
+![为什么用量偏高：工作负载证据与效率证据，以及只保留证据的异常时间线](docs/screenshots/why-usage-high.png)
 
 两张图均为安装了本插件后的本地 DeepSeek Harness 真实运行截图（深色主题、中文界面；插件同时支持英文与
-中文）。钱包金额已打码，未使用任何模拟数据。第二张图由同一仪表盘的两个区域拼接：缓存/请求卡片与异常时间线。
+中文）。钱包金额已打码，未使用任何模拟数据。第二张图由同一仪表盘的两个区域拼接：工作负载/效率评估，以及
+只保留证据的异常时间线与预测。
 
 ---
 
@@ -402,7 +403,7 @@ CI 运行前三条命令（其中审计通过 `npm run audit` 调用）；`verif
 
 **截图：** 仓库只接受真实本地 Harness 运行的截图 —— 绝不使用效果图。运行插件、打开面板、截取窗口，
 对钱包金额/会话标题/路径脱敏，分别保存为 `docs/screenshots/dashboard.png` 与
-`docs/screenshots/cache-anomaly.png`。
+`docs/screenshots/why-usage-high.png`。
 
 更多细节：[`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md)、[`docs/DATA-SOURCES.md`](docs/DATA-SOURCES.md)、
 [`docs/API.md`](docs/API.md)、[`docs/UI.md`](docs/UI.md)、[`CONTRIBUTING.md`](CONTRIBUTING.md)。

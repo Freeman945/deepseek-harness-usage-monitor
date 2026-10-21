@@ -19,12 +19,12 @@ English | [简体中文](README.zh.md)
 
 ![Usage Monitor dashboard — dark theme, Simplified Chinese UI](docs/screenshots/dashboard.png)
 
-![Cache and request cards plus the anomaly timeline from the same dashboard](docs/screenshots/cache-anomaly.png)
+![Why is usage high? Workload evidence vs efficiency evidence, and the evidence-only anomaly timeline](docs/screenshots/why-usage-high.png)
 
 Both images are real captures from a local DeepSeek Harness run with the plugin installed (dark
 theme, Chinese UI; the UI is fully localized in English and Chinese). Wallet amounts are redacted;
-no mock or demo data is shown. The second image stacks two regions of the same dashboard:
-cache/request cards and the anomaly timeline.
+no mock or demo data is shown. The second image stacks two regions of the same dashboard: the
+workload-vs-efficiency assessment and the evidence-only anomaly timeline plus forecast.
 
 ---
 
@@ -446,7 +446,7 @@ reload. Delete `$DSH_HOME/usage-monitor/` to reset state while testing.
 
 **Screenshots:** only real captures from a local Harness run are committed — never mockups. Run
 the plugin, open the dashboard, capture the window, redact wallet amounts/session titles/paths, and
-save as `docs/screenshots/dashboard.png` and `docs/screenshots/cache-anomaly.png`.
+save as `docs/screenshots/dashboard.png` and `docs/screenshots/why-usage-high.png`.
 
 More detail: [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md),
 [`docs/DATA-SOURCES.md`](docs/DATA-SOURCES.md), [`docs/API.md`](docs/API.md),
