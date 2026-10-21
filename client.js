@@ -209,7 +209,7 @@ window.__ModuleLoader__.load({
       'kpi.rateMeta': '{requests} req/min \u00b7 {tokens} tok/min',
       'kpi.burnBaseline': '24h average {amount}/h',
       'kpi.activeBaselineHigher': '{ratio}\u00d7 active baseline',
-      'kpi.activeBaselineLower': '{ratio}\u00d7 active baseline',
+      'kpi.activeBaselineLower': '{ratio}\u00d7 active baseline (below normal)',
       'kpi.overallBaseline': '{ratio}\u00d7 the 24h average',
       'kpi.noticeWording': 'High usage, no efficiency anomaly evidence',
       'kpi.learningBaseline': 'Learning baseline',
@@ -265,6 +265,8 @@ window.__ModuleLoader__.load({
       'rate.now': '{value} req/min',
       'rate.baseline': '24h average {value} req/min',
       'rate.multiplier': '{ratio}\u00d7 the 24h average',
+      'rate.multiplierActive': '{ratio}\u00d7 the active baseline',
+      'rate.metaActive': '{overall}\u00d7 the 24h average \u00b7 baseline {baseline} req/min',
       'rate.noBaseline': 'No 24h average yet',
       'rate.avgInput': 'Avg input / request',
       'rate.uncachedPerMin': 'Uncached input / min',
@@ -308,6 +310,7 @@ window.__ModuleLoader__.load({
       'why.driver.uncached': 'Uncached input',
       'why.driver.mixed': 'Mixed',
       'why.driver.none': 'No abnormal usage',
+      'why.driver.normalWorkload': 'Normal workload',
       'why.workloadGroup': 'Workload evidence',
       'why.efficiencyGroup': 'Efficiency evidence',
       'why.workload.requestRate': 'Request rate {recent} req/min, active baseline {baseline} req/min ({multiplier}\u00d7)',
@@ -576,8 +579,8 @@ window.__ModuleLoader__.load({
       'kpi.usageMeta': '{requests} 次请求 \u00b7 {tokens} Token',
       'kpi.rateMeta': '{requests} 次/分钟 \u00b7 {tokens} Token/分钟',
       'kpi.burnBaseline': '24 小时平均 {amount}/小时',
-      'kpi.activeBaselineHigher': '比活跃基线高 {ratio}\u00d7',
-      'kpi.activeBaselineLower': '低于活跃基线 {ratio}\u00d7',
+      'kpi.activeBaselineHigher': '活跃基线的 {ratio}\u00d7',
+      'kpi.activeBaselineLower': '活跃基线的 {ratio}\u00d7（低于基线）',
       'kpi.overallBaseline': '24 小时均值 {ratio}\u00d7',
       'kpi.noticeWording': '消耗较高，暂无效率异常证据',
       'kpi.learningBaseline': '正在建立基线',
@@ -633,6 +636,8 @@ window.__ModuleLoader__.load({
       'rate.now': '{value} 次/分钟',
       'rate.baseline': '24 小时平均 {value} 次/分钟',
       'rate.multiplier': '是 24 小时均值的 {ratio}\u00d7',
+      'rate.multiplierActive': '是活跃基线的 {ratio}\u00d7',
+      'rate.metaActive': '24 小时均值 {overall}\u00d7 \u00b7 基线 {baseline} 次/分钟',
       'rate.noBaseline': '尚无 24 小时均值',
       'rate.avgInput': '每次请求平均输入',
       'rate.uncachedPerMin': '未命中缓存输入/分钟',
@@ -676,6 +681,7 @@ window.__ModuleLoader__.load({
       'why.driver.uncached': '未命中输入',
       'why.driver.mixed': '混合',
       'why.driver.none': '无异常',
+      'why.driver.normalWorkload': '正常高负载',
       'why.workloadGroup': '工作负载证据',
       'why.efficiencyGroup': '效率证据',
       'why.workload.requestRate': '请求速率 {recent} 次/分钟，活跃基线 {baseline} 次/分钟（{multiplier}\u00d7）',
@@ -1329,7 +1335,7 @@ window.__ModuleLoader__.load({
       const value = num(ratio);
       if (value == null) return null;
       if (value >= 1) return t('kpi.activeBaselineHigher', { ratio: fmt.ratio(value) });
-      return t('kpi.activeBaselineLower', { ratio: fmt.ratio(value <= 0 ? 1 : 1 / value) });
+      return t('kpi.activeBaselineLower', { ratio: fmt.ratio(value) });
     }
 
     /** Localized display text for one assessment evidence entry. */
@@ -1398,6 +1404,7 @@ window.__ModuleLoader__.load({
     function driverLevelOf(driver) {
       if (driver === 'cache' || driver === 'uncached' || driver === 'mixed') return 'warning';
       if (driver === 'workload') return 'notice';
+      if (driver === 'normalWorkload') return 'info';
       return 'info';
     }
 
@@ -2648,11 +2655,22 @@ window.__ModuleLoader__.load({
       const burn = (data && data.burn) || {};
       const cache = (data && data.cache) || {};
       const series = (data && data.series) || {};
+      const assessment = assessmentOf(data);
+      const metrics = (assessment && assessment.metrics) || {};
       const points = Array.isArray(series.points) ? series.points : [];
       const totals = seriesTotals(points);
       const now = num(burn.last5m && burn.last5m.requestsPerMin);
       const baseline = num(burn.baseline24h && burn.baseline24h.requestsPerMin);
-      const ratio = now != null && baseline != null && baseline > 0 ? now / baseline : null;
+      const overall24hRatio = now != null && baseline != null && baseline > 0 ? now / baseline : null;
+      // v0.1.1: compare against the median active-workload baseline, not the idle-diluted 24h mean.
+      const activeBaselineReady = Boolean(assessment)
+        && assessment.baselineStatus === 'ready'
+        && assessment.baselineWarming !== true
+        && num(metrics.requestBaselinePerMin) != null
+        && metrics.requestBaselinePerMin > 0
+        && num(metrics.requestsPerMin) != null;
+      const activeRatio = activeBaselineReady ? metrics.requestsPerMin / metrics.requestBaselinePerMin : null;
+      const warming = baselineWarmingOf(data);
       const minutes = rangeMinutes(range);
       const cachedFallback = cache.last24h || {};
       const inputTokens = totals.requests > 0
@@ -2663,8 +2681,20 @@ window.__ModuleLoader__.load({
       const uncachedTotal = totals.requests > 0 ? totals.uncached : num(cachedFallback.missTokens) || 0;
       const uncachedPerMin = requestCount > 0 ? uncachedTotal / minutes : null;
 
-      let rateSecondary = t('rate.noBaseline');
-      if (ratio != null) rateSecondary = t('rate.multiplier', { ratio: fmt.ratio(ratio) });
+      let rateSecondary = null;
+      let rateMeta = null;
+      if (activeRatio != null) {
+        rateSecondary = t('rate.multiplierActive', { ratio: fmt.ratio(activeRatio) });
+        rateMeta = overall24hRatio != null && baseline != null
+          ? t('rate.metaActive', { overall: fmt.ratio(overall24hRatio), baseline: fmt.decimal(baseline) })
+          : (baseline != null ? t('rate.baseline', { value: fmt.decimal(baseline) }) : null);
+      } else if (warming) {
+        rateSecondary = h('span', { className: 'um-chip', 'data-level': 'notice' }, t('kpi.learningBaseline'));
+        rateMeta = baseline != null ? t('rate.baseline', { value: fmt.decimal(baseline) }) : null;
+      } else {
+        rateSecondary = overall24hRatio != null ? t('rate.multiplier', { ratio: fmt.ratio(overall24hRatio) }) : t('rate.noBaseline');
+        rateMeta = baseline != null ? t('rate.baseline', { value: fmt.decimal(baseline) }) : null;
+      }
 
       return h(Card, { title: t('rate.title'), className: 'um-rate-card' },
         h('div', { className: 'um-rate-top' },
@@ -2672,10 +2702,8 @@ window.__ModuleLoader__.load({
             now != null ? fmt.decimal(now) : EM_DASH,
             now != null ? h('span', { className: 'um-big-unit' }, t('unit.reqPerMin')) : null),
           h('div', { className: 'um-cache-deltas' },
-            h('div', { className: 'um-muted' }, rateSecondary),
-            baseline != null
-              ? h('div', { className: 'um-muted' }, t('rate.baseline', { value: fmt.decimal(baseline) }))
-              : null)),
+            rateSecondary ? h('div', { className: 'um-muted' }, rateSecondary) : null,
+            rateMeta ? h('div', { className: 'um-muted' }, rateMeta) : null)),
         points.length
           ? h('div', { className: 'um-spark' },
             h(Sparkline, {
@@ -2856,6 +2884,8 @@ window.__ModuleLoader__.load({
       const workload = Array.isArray(assessment.workload) ? assessment.workload.filter(Boolean) : [];
       const efficiency = Array.isArray(assessment.efficiency) ? assessment.efficiency.filter(Boolean) : [];
       const driver = ['workload', 'cache', 'uncached', 'mixed', 'none'].indexOf(assessment.driver) >= 0 ? assessment.driver : 'none';
+      // Normal level with workload evidence only: call it a normal workload rather than "no anomaly".
+      const driverKey = driver === 'none' && workload.length > 0 ? 'normalWorkload' : driver;
       const summaryKey = typeof assessment.summaryKey === 'string' ? assessment.summaryKey : (level === 'normal' ? 'normal' : 'elevated');
       const diagnosisRows = diagnosisCauseRows(data, t, fmt);
       const visibleDiagnosis = diagnosisRows.slice(0, MAX_CAUSES);
@@ -2876,7 +2906,7 @@ window.__ModuleLoader__.load({
           : h('span', { className: 'um-chip', 'data-level': level }, t('severity.' + (level === 'notice' ? 'notice' : level === 'warning' ? 'warning' : 'critical')));
         parts.push(h('div', { className: 'um-driver-row' },
           h('span', { className: 'um-driver-label' }, t('why.driverLabel')),
-          h('span', { className: 'um-chip', 'data-level': driverLevelOf(driver) }, t('why.driver.' + driver)),
+          h('span', { className: 'um-chip', 'data-level': driverLevelOf(driverKey) }, t('why.driver.' + driverKey)),
           levelChip));
         parts.push(h('p', { className: 'um-assessment', 'data-level': level },
           t(assessmentSentenceKey(summaryKey), assessmentSentenceParams(t, fmt, assessment))));

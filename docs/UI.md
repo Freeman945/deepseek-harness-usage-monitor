@@ -83,19 +83,27 @@ frame top clearance token when present). Rendering order, top to bottom:
    time, Refresh and Settings icon buttons;
 2. firing alerts only (`since > 0`, critical first; `notice` never becomes an alert);
 3. KPI row — balance (primary wallet + bonus), today, last hour, burn rate. The burn card's primary
-   line is the active-baseline ratio (`burn.activeRatio`) with the 24 h-average ratio muted; while
-   the baseline is warming it shows a neutral "Learning baseline" chip and no ratio at all; a
-   `notice` level shows "High usage, no efficiency anomaly evidence" instead of an alarming ratio;
+   line is the active-baseline ratio in one consistent shape ("{x}× active baseline" /
+   "活跃基线的 {x}×", with a "(below normal) /（低于基线）" suffix when the ratio is under 1) and the
+   24 h-average ratio stays muted; while the baseline is warming it shows a neutral "Learning
+   baseline" chip and no ratio at all; a `notice` level shows "High usage, no efficiency anomaly
+   evidence" instead of an alarming ratio;
 4. usage trend card with the 1 h / 6 h / 24 h / 7 d switch and hover tooltip;
 5. two-up: cache hit rate (big % tinted by `cache.health.state`, health chip, deadband-aware delta,
-   mini trend with baseline band, hit/miss/write tokens, "avoided input cost") and request rate
-   (req/min vs baseline, sparkline, avg input per request, uncached input per minute);
+   mini trend with baseline band, hit/miss/write tokens, "avoided input cost") and request rate.
+   The request card compares against the median **active** baseline whenever
+   `assessment.metrics.requestsPerMin` / `requestBaselinePerMin` exist and the baseline is ready
+   ("N× the active baseline" / "是活跃基线的 N×"), with the idle-diluted 24 h ratio and baseline
+   demoted to the muted meta line ("20.3× the 24h average · baseline 0.6 req/min"). Warming shows a
+   neutral "Learning baseline" chip with the 24 h wording; snapshots without the assessment keep
+   the old 24 h-only comparison;
 6. two-up: top consumers (tabs: sessions / tasks / agent presets / uncached tokens) and model
    usage (requests, tokens, hit rate, cost, share bar);
 7. "Why is usage high?" — built from the structured `assessment` block (see below) instead of
    ad-hoc derived bullets: a warming-baseline explanation, the main driver, a plain-language
    assessment sentence, a "Workload evidence" group, an "Efficiency evidence" group, then the
-   server cache diagnosis as a secondary "Cache diagnostics" list;
+   server cache diagnosis as a secondary "Cache diagnostics" list. A `normal` level that still has
+   workload evidence is labelled "Normal workload / 正常高负载" rather than "No abnormal usage";
 8. anomaly timeline, newest first (the session chip is informational — Harness has no public
    client API to open a session from a plugin, so it is deliberately not a link). `notice` entries
    use the amber dot, information entries the idle dot;
