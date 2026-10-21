@@ -60,7 +60,14 @@ check(status.cache?.hitRate === null || (status.cache?.hitRate >= 0 && status.ca
 check(Array.isArray(status.cache?.diagnosis), 'cache diagnosis present');
 check(Number.isFinite(status.cost?.windows?.last24h?.estimated), 'last-24h cost estimate present');
 check(Number.isFinite(status.burn?.ratio) || status.burn?.ratio === null, 'burn ratio present');
-check(status.scan?.finishedAt !== null && status.scan?.finishedAt >= status.scan?.startedAt, 'session scan completed');
+if (status.scan?.inProgress) {
+  log('  note session scan is currently running; re-run in a few seconds for the settled scan check');
+} else {
+  check(
+    Number.isFinite(status.scan?.finishedAt) && status.scan?.finishedAt >= status.scan?.startedAt,
+    'session scan completed',
+  );
+}
 if (status.balance?.state === 'ready') {
   check(status.balance?.primary?.amount >= 0, `wallet balance: ${status.balance.primary?.amount} ${status.balance.primary?.currency}`);
 } else {
