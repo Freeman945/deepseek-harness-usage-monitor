@@ -5,7 +5,7 @@ the formula used to derive the number, and whether the number is **observed**, *
 or **derived**. Nothing here is guessed by a model; the plugin contains no heuristics that
 invent data.
 
-Verified against **DeepSeek Harness 0.2.1-rc.2** and **plugin 0.1.0**.
+Verified against **DeepSeek Harness 0.2.1-rc.2** and **plugin 0.1.1**.
 See [`ARCHITECTURE.md`](ARCHITECTURE.md) for how these sources are wired into the Host plugin.
 
 ## Three kinds of numbers
@@ -69,6 +69,23 @@ cacheHitRate = cacheReadTokens / (cacheReadTokens + inputTokens + cacheWriteToke
   comparison is not diluted by the hour being judged.
 - `null` (shown as `—`) when the denominator is zero, e.g. a model that does not report caching.
 
+**Delta classification (v0.1.1).** The change against the 24-hour baseline is classified instead of
+alerted on directly:
+
+```text
+delta = last1h.hitRate − baseline.hitRate
+deltaClass = 'neutral'  when |delta| < cacheDeltaDeadband (default 0.05 = 5pp)
+             'notice'   when |delta| < cacheDeltaNotice   (default 0.15 = 15pp)
+             'warning'  otherwise
+             'unknown'  when either hit rate is null
+```
+
+Absolute health is separate and uses fixed rates: `hitRate < cacheCriticalRate` (0.3) is critical;
+`hitRate < cacheWarningRate` (0.5) is warning; a warning-class delta is a warning only when the
+absolute rate is also below `cacheHealthyRate` (0.9); otherwise any notice/warning-class delta is a
+notice and a neutral delta is healthy. This is why 99.7% → 99.0% (0.7pp) stays healthy: it never
+leaves the deadband.
+
 ## 3. Estimated cost — estimated
 
 **Source:** the official DeepSeek API price page, captured **2026-10-21**:
@@ -121,13 +138,16 @@ off-peak = every other hour, all weekend, and configured holidays
   advanced setting (bundle row `config` or the settings API, `YYYY-MM-DD` dates). Until then,
   holiday requests are estimated at the peak rate, and Diagnostics says so.
 
-**Cache savings (last 24 h):**
+**Estimated avoided extra input cost (last 24 h):**
 
 ```text
-savings = Σ over requests of cacheReadTokens × (cacheMissPrice − cacheHitPrice) / 1,000,000
+avoidedExtraInputCost = Σ over requests of cacheReadTokens × (cacheMissPrice − cacheHitPrice) / 1,000,000
 ```
 
-This is the money the cache hits avoided relative to paying the miss price for the same tokens.
+This answers a counterfactual: how much **more** the same requests would have cost if their cached
+prompt tokens had been billed at the cache-miss rate. It is not a refund, a platform credit or
+money added to the wallet; the API exposes it as `cache.savings.kind = 'avoided-extra-input-cost'`
+with a note saying so. The v0.1.1 UI labels it "Estimated avoided input cost".
 
 ## 4. Wallet balance — observed
 
@@ -175,22 +195,79 @@ observedSpend(window) = Σ max(0, previousSampleTotal − nextSampleTotal)
 - Balance history is trimmed to `retentionDays` and downsampled after 720 samples (full
   resolution for the last 2 hours, 10-minute resolution before that).
 
-## 6. Burn rate — derived
+## 6. Burn rate and active-workload baseline — derived
 
-**Source:** estimated cost bucketed per minute over the retained request rows.
+**Source:** estimated cost bucketed per 5 minutes over the retained request rows.
 
 ```text
 burn(window).costPerHour = estimated cost in window / window hours
 windows: last5m, last30m, last1h
-baseline24h.costPerHour = estimated cost in [now − 24h, now − 1h] / 23
-burnRatio = burn(last1h).costPerHour / baseline24h.costPerHour
+baseline24h.costPerHour = estimated cost in [now − 24h, now − 1h] / 23    (display context)
 ```
 
-- The baseline deliberately excludes the current hour, so the ratio answers "how much hotter is
-  the current hour than the previous 23 hours?".
-- `ratioBasis` is `estimated`: burn rate is never derived from wallet samples.
-- Level: `warning` when `ratio ≥ warningBurnRatio` (default 2), `critical` when
-  `ratio ≥ criticalBurnRatio` (default 4.5).
+**Active-workload baseline (v0.1.1, the primary alert trigger).** The overall 24-hour mean above is
+dominated by idle hours for low-frequency users, so it can make a normal concentrated task look
+extreme. The primary comparison uses only the 5-minute buckets in which work actually happened:
+
+```text
+window = [now − 24h, now − 1h], bucket = 5 minutes
+active bucket = bucket.requests ≥ minimumActiveRequests (default 1)
+
+activeBaseline.costPerHour     = median over active buckets of (bucket.pricedCost × 12)
+activeBaseline.requestsPerMin  = median over active buckets of (bucket.requests / 5)
+activeBaseline.uncachedPerRequest = median over active buckets of (bucket.input / bucket.requests)
+activeBaseline.avgPromptTokens = median over active buckets of
+                                 ((bucket.input + bucket.cacheRead + bucket.cacheWrite) / bucket.requests)
+
+activeRatio  = burn(last1h).costPerHour / activeBaseline.costPerHour
+overallRatio = burn(last1h).costPerHour / baseline24h.costPerHour        (display context only)
+```
+
+`burn.ratio` is the active ratio when the baseline is ready, otherwise the overall ratio;
+`burn.ratioKind` says which one it is (`active` / `overall` / `null`).
+
+**Warm-up gate.** The baseline is `ready` only when all three conditions hold; otherwise it is
+`warming` (`method: 'none'`, `costPerHour: null`) and burn-rate alerts are suppressed:
+
+```text
+activeBuckets ≥ minActiveBuckets (default 6)
+requests in the window ≥ baselineMinRequests (default 30)
+coverageHours ≥ baselineMinCoverageHours (default 1)
+coverageHours = min(23, (now − first observed event) / 1h)
+
+confidence = min(1, activeBuckets / minActiveBuckets) × min(1, coverageHours / baselineMinCoverageHours)
+```
+
+While warming, `burn.level` is `normal`, `assessment.baselineWarming` is `true`, and Diagnostics
+carries a "warming up" warning with the bucket/coverage/request counts.
+
+**Severity (v0.1.1).** Strong efficiency evidence means a recorded `cache-drop` or
+`uncached-burst` signal (see §6.1):
+
+```text
+baseline not ready                       → level normal, reason baseline-warming / baseline-unavailable
+activeRatio ≥ criticalBurnRatio (4.5)    → critical when (criticalRequiresSecondaryEvidence = false or strong evidence ≥ 1)
+                                           else notice (reason high-burn-workload-only)
+activeRatio ≥ warningBurnRatio (2)       → warning when strong evidence ≥ 1, else notice
+strong evidence ≥ 1 (lower burn)         → warning (reason efficiency-evidence)
+otherwise                                → normal (reason within-baseline)
+```
+
+`burn.reason` is one of `within-baseline`, `high-burn-workload-only`, `high-burn-with-evidence`,
+`efficiency-evidence`, `baseline-warming`, `baseline-unavailable`. Only warning/critical levels
+feed the alert list; a notice changes the dashboard status pill and the assessment explanation.
+
+### 6.1 Secondary evidence — derived
+
+| Evidence | Kind | Exact rule (defaults) |
+|---|---|---|
+| `request-rate` | workload | requests/min over the last 15 min ≥ max(1, `activeBaseline.requestsPerMin` × `requestRateWarningMultiplier` (2)) |
+| `context-growth` | workload | last-hour average prompt ≥ `activeBaseline.avgPromptTokens` × `contextGrowthMultiplier` (1.8) |
+| `cache-drop` | efficiency | baseline ready, last-hour cache requests ≥ 5, `delta ≤ −cacheDeltaDeadband` (−5pp), and last-hour hit rate < `cacheHealthyRate` (0.9) |
+| `uncached-burst` | efficiency | baseline ready, last-hour hit rate < `cacheHealthyRate`, last-30-min uncached tokens ≥ `uncachedBurstMinTokens` (10,000), and uncached tokens/request ≥ `activeBaseline.uncachedPerRequest` × `uncachedBurstMultiplier` (3) |
+| `session-dominance` | corroborating only | another efficiency signal already exists, last-hour uncached tokens ≥ 10,000, and the top session holds ≥ `sessionDominanceShare` (0.7) of them |
+
+Workload evidence alone can raise severity to Notice, never Warning/Critical.
 
 ## 7. Forecast — derived
 
@@ -231,15 +308,31 @@ Points outside the retained request rows are zero-filled, not interpolated.
 ## 10. Anomalies, alerts and cache diagnostics
 
 These are all **derived** from the sources above; the exact rules and thresholds are documented
-in the main README ([How anomaly detection works](../README.md#how-anomaly-detection-works) and
+in the main README ([How anomaly detection works](../README.md#how-anomaly-detection-works),
+[Understanding burn-rate alerts](../README.md#understanding-burn-rate-alerts),
 [Cache diagnostics](../README.md#cache-diagnostics)) and in
-[`lib/analytics.js`](../lib/analytics.js). The only additional persistent state is
-`anomalyMemory`: the first time a condition was seen, so the timeline can show "since" and
-"recovered" entries. It contains condition keys and timestamps, never prompt text.
+[`lib/analytics.js`](../lib/analytics.js). Summary of what v0.1.1 emits:
+
+| Condition | Rule (defaults) | Level |
+|---|---|---|
+| `burn-anomaly` | combined burn + efficiency condition, emitted only at warning/critical; type `cache-hit-drop`, `uncached-burst` or `burn-rate` according to the evidence | warning / critical |
+| `cache-low` | last-hour hit rate < `cacheWarningRate` (0.5) sustained `cacheAlertMinutes` (10) → warning; < `cacheCriticalRate` (0.3) → critical | warning / critical |
+| `cost-spike` | last-10-minute estimated cost > `costSpike10m` (5 display-currency units) | warning |
+| `balance-low` | wallet below a configured threshold (50 / 20 / 10); lowest breached threshold is critical | warning / critical |
+| `recovered` | previously active condition inactive for ≥ 2 min | info |
+| historical `cache-hit-drop` | 5-min bucket with ≥ 5 requests whose hit rate is < 0.5 absolute, or fell ≥ `cacheDeltaNotice` vs the 24h average while < 0.9 absolute | warning |
+| historical `request-spike` | 5-min bucket with > 4× the average request count and ≥ 8 requests | info |
+
+Per-bucket historical `burn-rate` reconstruction was removed in v0.1.1 (main source of false
+positives); live burn anomalies still appear when the assessment reaches warning/critical. Only
+warning/critical active conditions become alerts. The only additional persistent state is
+`anomalyMemory`: the first time a condition was seen, plus the internal `__cache-low-since`
+marker, so the timeline can show "since" and "recovered" entries. Internal `__*` markers are never
+rendered. It contains condition keys and timestamps, never prompt text.
 
 ## 11. What does not exist (and is therefore not shown)
 
-| Missing capability | Consequence in v0.1.0 |
+| Missing capability | Consequence in v0.1.1 |
 |---|---|
 | Harness-side cost calculator | Cost is always `tokens × table`, labeled `Est.`. |
 | Provider billing-history API | No historical invoice view and no exact per-request charge. |
@@ -263,3 +356,24 @@ in the main README ([How anomaly detection works](../README.md#how-anomaly-detec
 
 `$DSH_HOME` defaults to `~/.dsh`. The plugin never writes into Session logs, the profile, or the
 plugin package directory.
+
+## 13. Anomaly-quality settings (v0.1.1)
+
+All settings are optional with safe defaults; a v0.1.0 `settings.json` loads unchanged and simply
+inherits them. In v0.1.1 none of these have Settings-drawer controls — set them in the bundle row
+`config` or `POST /api/usage-monitor/settings` (see the README Configuration section).
+
+| Setting | Default | Validation / clamp | Used by |
+|---|---|---|---|
+| `minimumActiveRequests` | `1` | integer 1–1000 | Active bucket definition |
+| `minActiveBuckets` | `6` | integer 2–288 | Warm-up + confidence |
+| `baselineMinRequests` | `30` | integer 1–1,000,000 | Warm-up |
+| `baselineMinCoverageHours` | `1` | 0.25–24 | Warm-up + confidence |
+| `cacheDeltaDeadband` | `0.05` | 0–0.5 | Cache delta classification |
+| `cacheDeltaNotice` | `0.15` | 0.02–0.95; forced above `cacheDeltaDeadband` | Cache delta classification |
+| `cacheHealthyRate` | `0.9` | 0–1; raised to `cacheWarningRate` when lower | Absolute cache health |
+| `criticalRequiresSecondaryEvidence` | `true` | boolean (only `true` enables the requirement) | Burn severity |
+| `uncachedBurstMultiplier` | `3` | 1.2–20 | Uncached-burst evidence |
+| `uncachedBurstMinTokens` | `10000` | integer 0–1,000,000,000 | Uncached-burst evidence |
+| `sessionDominanceShare` | `0.7` | 0.3–1 | Corroborating session-dominance evidence |
+| `contextGrowthMultiplier` | `1.8` | 1.1–10 | Workload context-growth evidence |

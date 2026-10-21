@@ -35,11 +35,12 @@ cd deepseek-harness-usage-monitor
 node --version          # must be >= 20
 npm test                # Node's built-in test runner
 npm run check           # syntax, JSON, manifests, secrets, docs
-node scripts/security-audit.mjs
+npm run audit           # secrets/PII in the working tree and Git history
 ```
 
 `npm test` runs `node --test test/*.test.js`. Tests are plain ESM using `node:test` and
-`node:assert/strict`; no test framework is installed.
+`node:assert/strict`; no test framework is installed. On a machine with the plugin installed you
+can also run `npm run verify:live` to cross-check a real local run.
 
 ## Installing a development copy
 
@@ -64,7 +65,7 @@ Restart the Harness window if the panel does not appear after installation. Loca
 | `index.js` | Host | Cordis entry: `apply`, `inject`, route registration, index injection |
 | `lib/monitor.js` | Host | Engine: scanning, live events, wallet polling, HTTP, lifecycle |
 | `lib/ingest.js` | Host | Session-event folding: usage counters and cache signals |
-| `lib/analytics.js` | Host | Snapshot aggregation: windows, burn, cache, anomalies, consumers |
+| `lib/analytics.js` | Host | Snapshot aggregation: windows, active baseline, burn severity, assessment, cache, anomalies, consumers |
 | `lib/pricing.js` | Host | Official price table, peak rule, estimates |
 | `lib/store.js` | Host | Settings, atomic state file, retention |
 | `client.js` | Client | Browser bundle: sidebar entry, dashboard, settings drawer, i18n |
@@ -76,9 +77,12 @@ Restart the Harness window if the panel does not appear after installation. Loca
 
 1. Add the source/formula to `docs/DATA-SOURCES.md`.
 2. Add or update the corresponding field in `docs/API.md` (schema v1 is additive-only within
-   0.1.x; an incompatible payload change bumps `schemaVersion`).
+   0.1.x; an incompatible payload change bumps `schemaVersion`). v0.1.1 added fields without
+   changing `schemaVersion` or migrating stored data.
 3. Add a unit test with a deterministic timestamp (tests must not depend on the wall clock).
 4. If the UI displays it, use a locale key in both `locale/en.json` and `locale/zh.json`.
+5. If it changes alert behavior, state whether it is workload evidence or efficiency evidence, and
+   update the severity/evidence rules in the README and `docs/DATA-SOURCES.md` together.
 
 ## Screenshots
 
@@ -92,10 +96,11 @@ Restart the Harness window if the panel does not appear after installation. Loca
 
 - [ ] `npm test` passes.
 - [ ] `npm run check` passes.
-- [ ] `node scripts/security-audit.mjs` passes (including Git history).
+- [ ] `npm run audit` passes (including Git history).
 - [ ] No new runtime dependency; no new network call.
 - [ ] Docs updated (`README`, `docs/API.md`, `docs/DATA-SOURCES.md` as applicable).
 - [ ] English and Chinese UI strings both present.
+- [ ] New alert rules are deterministic, documented, and cannot fire while the baseline is warming.
 - [ ] Fixtures and screenshots are synthetic or redacted.
 - [ ] Commit messages describe the user-visible behavior change.
 

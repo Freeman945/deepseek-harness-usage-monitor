@@ -50,4 +50,5 @@ jobs:
           fi
 
       - name: Security and privacy audit
-        run: node scripts/security-audit.mjs
+        # `npm run audit` is `node scripts/security-audit.mjs` from package.json.
+        run: npm run audit
