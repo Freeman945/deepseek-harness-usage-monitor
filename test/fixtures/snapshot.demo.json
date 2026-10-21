@@ -1,0 +1,169 @@
+{
+  "_demo": true,
+  "_note": "Synthetic fixture for UI development only. It is not produced by a live run.",
+  "schemaVersion": 1,
+  "generatedAt": 1792576000000,
+  "status": "warning",
+  "locale": "zh",
+  "currency": "CNY",
+  "balance": {
+    "state": "ready",
+    "wallets": [{ "currency": "CNY", "balance": "82.41" }],
+    "bonusWallets": [{ "currency": "CNY", "balance": "5.00" }],
+    "primary": { "currency": "CNY", "amount": 82.41 },
+    "totalAll": 87.41,
+    "fetchedAt": 1792575985000,
+    "error": null,
+    "observedSince": 1792489600000
+  },
+  "cost": {
+    "currency": "CNY",
+    "pricing": {
+      "source": "https://api-docs.deepseek.com/quick_start/pricing/",
+      "asOf": "2026-10-21",
+      "note": "Official DeepSeek list prices; peak/off-peak applied per request time."
+    },
+    "coverageStart": 1792489600000,
+    "windows": {
+      "lastHour": { "estimated": 0.48, "observed": 0.46, "observedComplete": true, "tokens": 1820000, "requests": 34 },
+      "today": { "estimated": 3.27, "observed": null, "observedComplete": false, "tokens": 14200000, "requests": 240 },
+      "last24h": { "estimated": 4.12, "observed": null, "observedComplete": false, "tokens": 18100000, "requests": 312 },
+      "last7d": { "estimated": 21.84, "observed": null, "observedComplete": false, "tokens": 96200000, "requests": 1740 },
+      "month": { "estimated": 21.84, "observed": null, "observedComplete": false, "tokens": 96200000, "requests": 1740 }
+    }
+  },
+  "burn": {
+    "last5m": { "cost": 0.21, "costPerHour": 2.52, "tokensPerMin": 52000, "requestsPerMin": 1.4, "basis": "estimated" },
+    "last30m": { "cost": 1.16, "costPerHour": 2.32, "tokensPerMin": 48000, "requestsPerMin": 1.2, "basis": "estimated" },
+    "last1h": { "cost": 2.31, "costPerHour": 2.31, "tokensPerMin": 45000, "requestsPerMin": 1.1, "basis": "estimated" },
+    "baseline24h": { "cost": 10.08, "costPerHour": 0.42, "tokensPerMin": 9200, "requestsPerMin": 0.22, "basis": "estimated" },
+    "ratio": 5.5,
+    "ratioBasis": "estimated",
+    "level": "critical"
+  },
+  "cache": {
+    "last1h": { "hitTokens": 1540000, "missTokens": 240000, "writeTokens": 0, "hitRate": 0.865, "requests": 34 },
+    "last24h": { "hitTokens": 14200000, "missTokens": 3900000, "writeTokens": 0, "hitRate": 0.784, "requests": 312 },
+    "baseline": { "hitTokens": 17100000, "missTokens": 2200000, "writeTokens": 0, "hitRate": 0.886, "requests": 288 },
+    "hitRate": 0.865,
+    "deltaVsBaseline": -0.021,
+    "savings": { "amount": 2.84, "currency": "CNY", "note": "Estimated: cached input priced at the cache-hit rate instead of cache-miss." },
+    "trend": [
+      { "t": 1792572400000, "hitRate": 0.91, "hitTokens": 980000, "missTokens": 96000, "requests": 22 },
+      { "t": 1792572700000, "hitRate": 0.89, "hitTokens": 1020000, "missTokens": 124000, "requests": 25 },
+      { "t": 1792573000000, "hitRate": 0.88, "hitTokens": 1180000, "missTokens": 158000, "requests": 28 },
+      { "t": 1792573300000, "hitRate": 0.86, "hitTokens": 1310000, "missTokens": 210000, "requests": 31 },
+      { "t": 1792573600000, "hitRate": 0.84, "hitTokens": 1450000, "missTokens": 274000, "requests": 33 },
+      { "t": 1792573900000, "hitRate": 0.82, "hitTokens": 1610000, "missTokens": 352000, "requests": 36 },
+      { "t": 1792574200000, "hitRate": 0.858, "hitTokens": 1420000, "missTokens": 235000, "requests": 32 },
+      { "t": 1792574500000, "hitRate": 0.872, "hitTokens": 1330000, "missTokens": 196000, "requests": 30 },
+      { "t": 1792574800000, "hitRate": 0.868, "hitTokens": 1400000, "missTokens": 214000, "requests": 31 },
+      { "t": 1792575100000, "hitRate": 0.861, "hitTokens": 1480000, "missTokens": 239000, "requests": 33 },
+      { "t": 1792575400000, "hitRate": 0.865, "hitTokens": 1540000, "missTokens": 240000, "requests": 34 }
+    ],
+    "diagnosis": [
+      {
+        "code": "request-epoch-change",
+        "severity": "warning",
+        "title": "Request epoch changed 7 times in one session",
+        "detail": "The cached prefix is reset whenever the request header changes (tools, system prompt or model). Session 'research-agent' rebuilt its request epoch 7 times during the last hour, and each rebuild is followed by a cache-miss spike.",
+        "sessionId": "session-0521b19e-5fbd-446e-80a2-7ca2fe0890e1",
+        "sessionTitle": "research-agent",
+        "evidence": { "headerChanges": 7, "hitRateAfterChange": 0.18, "toolCountChanges": 2, "modelChanges": 1 }
+      },
+      {
+        "code": "system-prompt-changing",
+        "severity": "warning",
+        "title": "System prompt hash changed inside a session",
+        "detail": "4 distinct system-prompt hashes were observed in one session, so the cacheable prefix could not stay stable.",
+        "sessionId": "session-0521b19e-5fbd-446e-80a2-7ca2fe0890e1",
+        "sessionTitle": "research-agent",
+        "evidence": { "systemPromptHashes": 4, "systemMessages": 6 }
+      }
+    ]
+  },
+  "series": {
+    "range": "24h",
+    "bucketMs": 1800000,
+    "from": 1792489600000,
+    "to": 1792576000000,
+    "points": []
+  },
+  "models": [
+    { "model": "deepseek-flash", "provider": "deepseek-official", "priced": true, "requests": 286, "inputTokens": 3810000, "outputTokens": 620000, "cachedTokens": 13100000, "uncachedTokens": 3810000, "hitRate": 0.774, "cost": 3.42, "costShare": 0.83, "avgCostPerRequest": 0.012 },
+    { "model": "deepseek-v4-pro", "provider": "deepseek-official", "priced": true, "requests": 26, "inputTokens": 90000, "outputTokens": 26000, "cachedTokens": 1100000, "uncachedTokens": 90000, "hitRate": 0.924, "cost": 0.7, "costShare": 0.17, "avgCostPerRequest": 0.027 }
+  ],
+  "consumers": {
+    "window": "24h",
+    "sessions": [
+      { "key": "session-0521b19e", "label": "research-agent", "sublabel": "D:\\work\\demo-app", "sessionId": "session-0521b19e-5fbd-446e-80a2-7ca2fe0890e1", "requests": 142, "inputTokens": 2410000, "outputTokens": 320000, "cachedTokens": 5800000, "uncachedTokens": 2410000, "hitRate": 0.706, "cost": 2.31, "costShare": 0.56 },
+      { "key": "session-84425c0f", "label": "coding-agent", "sublabel": "D:\\work\\web-client", "sessionId": "session-84425c0f-b696-4ce8-9a33-5fe90f4085b3", "requests": 98, "inputTokens": 820000, "outputTokens": 180000, "cachedTokens": 4600000, "uncachedTokens": 820000, "hitRate": 0.849, "cost": 0.82, "costShare": 0.2 },
+      { "key": "session-9834d90f", "label": "browser-agent", "sublabel": "D:\\work\\web-client", "sessionId": "session-9834d90f-649f-4702-86c6-d8954e60b5e1", "requests": 72, "inputTokens": 580000, "outputTokens": 146000, "cachedTokens": 2700000, "uncachedTokens": 580000, "hitRate": 0.823, "cost": 0.31, "costShare": 0.075 }
+    ],
+    "presets": [
+      { "key": "cordis", "label": "cordis preset", "requests": 198, "inputTokens": 2810000, "outputTokens": 420000, "cachedTokens": 7600000, "uncachedTokens": 2810000, "hitRate": 0.73, "cost": 2.92, "costShare": 0.71 },
+      { "key": "standard", "label": "standard preset", "requests": 114, "inputTokens": 1000000, "outputTokens": 226000, "cachedTokens": 5500000, "uncachedTokens": 1000000, "hitRate": 0.846, "cost": 1.2, "costShare": 0.29 }
+    ],
+    "tasks": [
+      { "key": "session-0521b19e#17", "label": "research-agent · Turn 17", "sessionId": "session-0521b19e-5fbd-446e-80a2-7ca2fe0890e1", "turn": 17, "requests": 34, "inputTokens": 640000, "outputTokens": 82000, "cachedTokens": 1200000, "uncachedTokens": 640000, "hitRate": 0.652, "cost": 0.74, "costShare": 0.18 },
+      { "key": "session-0521b19e#18", "label": "research-agent · Turn 18", "sessionId": "session-0521b19e-5fbd-446e-80a2-7ca2fe0890e1", "turn": 18, "requests": 28, "inputTokens": 510000, "outputTokens": 64000, "cachedTokens": 980000, "uncachedTokens": 510000, "hitRate": 0.658, "cost": 0.6, "costShare": 0.146 },
+      { "key": "session-84425c0f#6", "label": "coding-agent · Turn 6", "sessionId": "session-84425c0f-b696-4ce8-9a33-5fe90f4085b3", "turn": 6, "requests": 22, "inputTokens": 190000, "outputTokens": 41000, "cachedTokens": 1020000, "uncachedTokens": 190000, "hitRate": 0.843, "cost": 0.21, "costShare": 0.051 }
+    ],
+    "uncached": [
+      { "key": "session-0521b19e", "label": "research-agent", "sublabel": "67% of recent uncached tokens", "sessionId": "session-0521b19e-5fbd-446e-80a2-7ca2fe0890e1", "requests": 142, "inputTokens": 2410000, "outputTokens": 320000, "cachedTokens": 5800000, "uncachedTokens": 2410000, "hitRate": 0.706, "cost": 2.31, "costShare": 0.56 },
+      { "key": "session-84425c0f", "label": "coding-agent", "sublabel": "23% of recent uncached tokens", "sessionId": "session-84425c0f-b696-4ce8-9a33-5fe90f4085b3", "requests": 98, "inputTokens": 820000, "outputTokens": 180000, "cachedTokens": 4600000, "uncachedTokens": 820000, "hitRate": 0.849, "cost": 0.82, "costShare": 0.2 }
+    ]
+  },
+  "anomalies": [
+    { "id": "burn-rate:1792575360000", "t": 1792575360000, "level": "critical", "type": "burn-rate", "title": "Burn rate reached 5.5× the 24h average", "detail": "Current burn is ¥2.31/hour against a ¥0.42/hour baseline.", "evidence": { "burnPerHour": 2.31, "baselinePerHour": 0.42, "ratio": 5.5 } },
+    { "id": "cache-hit-drop:1792575060000", "t": 1792575060000, "level": "warning", "type": "cache-hit-drop", "title": "Cache hit rate dropped below its 24h baseline", "detail": "Hit rate fell from 88.6% to 86.5% while request volume rose.", "evidence": { "recent": 0.865, "baseline": 0.886 } },
+    { "id": "session-dominance:1792575000000", "t": 1792575000000, "level": "warning", "type": "session-dominance", "title": "research-agent generated 67% of recent uncached tokens", "detail": "241k uncached input tokens in the last 24 hours.", "sessionId": "session-0521b19e-5fbd-446e-80a2-7ca2fe0890e1", "evidence": { "uncachedTokens": 2410000, "share": 0.67 } }
+  ],
+  "forecast": {
+    "dailyCost": 55.44,
+    "dailyCostBaseline": 10.08,
+    "daysRemaining": 1.49,
+    "remainingTimeText": "1 day 12 hours",
+    "basis": "last1h",
+    "note": "Estimate based on recent usage."
+  },
+  "alerts": [
+    { "id": "burn-rate", "level": "critical", "type": "burn-rate", "title": "Burn rate is 5.5× normal", "detail": "¥2.31/hour now vs ¥0.42/hour 24h average.", "since": 1792575360000, "evidence": { "burnPerHour": 2.31, "baselinePerHour": 0.42, "ratio": 5.5 } },
+    { "id": "balance-low:50", "level": "warning", "type": "balance-low", "title": "Balance below ¥50", "detail": "Current balance ¥82.41 is above this threshold; alert is configured but not firing.", "since": 0, "evidence": { "threshold": 50, "balance": 82.41, "currency": "CNY" } }
+  ],
+  "settings": {
+    "currency": "auto",
+    "balanceRefreshSeconds": 45,
+    "warningBurnRatio": 2,
+    "criticalBurnRatio": 4.5,
+    "cacheWarningRate": 0.5,
+    "cacheCriticalRate": 0.3,
+    "cacheAlertMinutes": 10,
+    "requestRateWarningMultiplier": 2,
+    "costSpike10m": 5,
+    "balanceAlerts": [50, 20, 10],
+    "pricingOverrides": {},
+    "holidays": [],
+    "retentionDays": 14,
+    "scanIntervalSeconds": 60,
+    "exposeDiagnosticsFile": true
+  },
+  "diagnostics": {
+    "sources": {
+      "balance": { "kind": "deepseek-account-platform", "state": "ready" },
+      "tokens": { "kind": "session-events", "sessionsScanned": 56, "liveSessions": 3, "requests": 312 },
+      "pricing": { "kind": "official-table", "currency": "CNY", "source": "https://api-docs.deepseek.com/quick_start/pricing/", "asOf": "2026-10-21" },
+      "cost": { "kind": "estimated+observed", "observedStart": 1792489600000 }
+    },
+    "scan": { "startedAt": 1792575900000, "finishedAt": 1792575920000, "inProgress": false, "sessions": 56, "errors": 0 },
+    "data": {
+      "firstEventAt": 1789020696773,
+      "lastEventAt": 1792575980000,
+      "retentionDays": 14,
+      "requestsInRetention": 312,
+      "balanceSamples": 142,
+      "gaps": []
+    },
+    "warnings": ["Peak/off-peak pricing ignores Chinese public holidays unless configured in Settings."]
+  }
+}
