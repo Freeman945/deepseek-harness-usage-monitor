@@ -248,7 +248,7 @@ const TEXT_FILES = FILES.filter((file) => {
   if (manifest) {
     const problems = [];
     if (manifest.name !== 'deepseek-harness-usage-monitor') problems.push('name must be deepseek-harness-usage-monitor');
-    if (manifest.version !== '0.1.0') problems.push('version must be 0.1.0');
+    if (manifest.version !== '0.1.1') problems.push('version must be 0.1.1');
     if (manifest.license !== 'MIT') problems.push('license must be MIT');
     if (manifest.type !== 'module') problems.push('type must be module');
     if (manifest.private !== true) problems.push('private must stay true (install by path, not by npm publish)');
